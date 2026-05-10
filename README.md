@@ -3,8 +3,8 @@
 CENG 463 — Introduction to Machine Learning — Term Project  
 İzmir Institute of Technology — Spring 2026
 
-**Student:** Ozan Erdoğan
-**Instructor:** Prof. Dr. Aytuğ Onan
+**Student:** Ozan Erdoğan  
+**Instructor:** Prof. Dr. Aytuğ Onan  
 **Dataset:** Jena Climate, a multivariate weather time-series dataset with approximately 420K raw observations and 14 meteorological variables.
 
 ---

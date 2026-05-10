@@ -1,0 +1,38 @@
+# Data
+data/raw/
+data/processed/
+*.csv
+*.zip
+*.parquet
+!data/README.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.ipynb_checkpoints/
+
+# Models / artifacts
+*.pt
+*.pth
+*.pkl
+*.joblib
+results/runs/
+results/checkpoints/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+wandb/

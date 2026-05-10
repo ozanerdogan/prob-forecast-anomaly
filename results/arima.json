@@ -1,0 +1,16 @@
+{
+  "rmse": 4.498307323478212,
+  "mae": 3.6444575652895788,
+  "mape": 299.26824238211555,
+  "model": "arima",
+  "order": [
+    2,
+    1,
+    2
+  ],
+  "target": "T (degC)",
+  "horizon": 24,
+  "refit_every": 50,
+  "test_subset_hours": 720,
+  "n_predictions": 16728
+}

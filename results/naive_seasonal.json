@@ -1,0 +1,10 @@
+{
+  "rmse": 3.2104438674263016,
+  "mae": 2.444753019587059,
+  "mape": 122.8578832709183,
+  "model": "naive_seasonal",
+  "target": "T (degC)",
+  "horizon": 24,
+  "season_length": 24,
+  "n_predictions": 209688
+}

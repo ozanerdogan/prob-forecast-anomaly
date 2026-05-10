@@ -80,7 +80,7 @@ The project uses the Jena Climate dataset, a multivariate weather time-series da
 This project is a multistep time-series forecasting task with an additional robustness evaluation component. The main goal is to predict future temperature values from past weather observations. The anomaly-injection part extends the task by testing how stable the models remain when the input data becomes abnormal.
 
 \paragraph{Challenges.}
-The problem is technically challenging for several reasons. First, errors can accumulate over a 24-hour forecasting horizon, especially in autoregressive models. Second, probabilistic models must produce not only accurate forecasts but also well-calibrated uncertainty estimates, so their prediction intervals should contain the true values at the expected rate. Third, anomaly injection must be designed carefully: very small anomalies may have little effect, while unrealistic anomalies can make the task trivial. Therefore, the evaluation must consider both clean-data accuracy and robustness under abnormal inputs.
+Scaling these forecasts over a 24-hour horizon introduces several technical difficulties. Errors can accumulate across future steps, especially in autoregressive models. Probabilistic models must produce not only accurate forecasts but also well-calibrated uncertainty estimates, so their prediction intervals should contain the true values at the expected rate. Anomaly injection must also be designed carefully: very small anomalies may have little effect, while unrealistic anomalies can make the task trivial. Therefore, the evaluation must consider both clean-data accuracy and robustness under abnormal inputs.
 
 \section{Dataset and Preprocessing Status}
 
@@ -197,7 +197,7 @@ spikes, contextual outliers, and level shifts. Finally, Gneiting and Raftery
 important because the probabilistic models must be evaluated not only by point
 error but also by the quality of their predictive distributions.
 
-\paragraph{What this means for my project.}
+\paragraph{Methodological implications.}
 The reading suggests three concrete decisions. (1)~Use seasonal naive, ARIMA,
 and LSTM as deterministic baselines before comparing against probabilistic
 models. (2)~Use DeepAR as the parametric probabilistic model and a
@@ -213,7 +213,7 @@ At this checkpoint, all three selected baseline models are implemented
 and can produce evaluation metrics. The numerical results are reported
 in the following section.
 
-\paragraph{What I picked and why.}
+\paragraph{Baseline selection rationale.}
 \begin{itemize}
   \item \textbf{Naive Seasonal} with $S=24$. This is the simplest
         baseline for an hourly series with a strong daily cycle: the
@@ -313,7 +313,7 @@ variation, which is the part a learned model is expected to capture.}
 \label{fig:naive-window}
 \end{figure}
 
-\paragraph{What the numbers say.}
+\paragraph{Interpretation of baseline results.}
 Naive Seasonal lands at RMSE $3.21$\,$^\circ$C and MAE $2.44$. This is
 high but still reasonable for a one-line baseline on a series with a
 clear daily cycle. ARIMA$(2,1,2)$ performs worse, with RMSE $4.50$ and
@@ -331,7 +331,7 @@ at epoch~8, with roughly the same shape on both curves and no late-stage
 divergence. The eight-epoch budget appears sufficient for this
 preliminary baseline.
 
-\paragraph{What this means for Phase~2.}
+\paragraph{Implications for Phase~2.}
 The LSTM currently provides the strongest deterministic reference point
 at about $2.4$\,$^\circ$C RMSE. A probabilistic model whose predictive
 mean is much worse than this reference would need to justify itself
@@ -342,7 +342,7 @@ become more informative under anomalous inputs.
 
 \section{Planned Improvements and Technical Direction}
 
-The next phase extends the current baseline pipeline in three directions:
+The next phase will extend the current baseline pipeline in three main directions:
 
 First, I will add two probabilistic forecasters: DeepAR, implemented as an
 autoregressive LSTM with a Gaussian or Student-$t$ likelihood and NLL training,
@@ -510,5 +510,29 @@ interval coverage probability (PICP), and mean interval score (MIS). I
 will also complete the planned ablation study, error analysis, and
 visualizations, then update the final report with the full experimental
 results.
+
+\section*{References}
+
+\begin{enumerate}[label={[\arabic*]}]
+  \item Rob J. Hyndman and George Athanasopoulos. \emph{Forecasting: Principles and Practice}. 3rd ed. OTexts, 2021. \url{https://otexts.com/fpp3/}
+
+  \item Sepp Hochreiter and J\"{u}rgen Schmidhuber. ``Long Short-Term Memory.'' \emph{Neural Computation}, 9(8):1735--1780, 1997. doi:10.1162/neco.1997.9.8.1735.
+
+  \item David Salinas, Valentin Flunkert, Jan Gasthaus, and Tim Januschowski. ``DeepAR: Probabilistic Forecasting with Autoregressive Recurrent Networks.'' \emph{International Journal of Forecasting}, 36(3):1181--1191, 2020.
+
+  \item Ruofeng Wen, Kari Torkkola, Balakrishnan Narayanaswamy, and Dhruv Madeka. ``A Multi-Horizon Quantile Recurrent Forecaster.'' \emph{arXiv preprint arXiv:1711.11053}, 2017.
+
+  \item Haoyi Zhou, Shanghang Zhang, Jieqi Peng, Shuai Zhang, Jianxin Li, Hui Xiong, and Wancai Zhang. ``Informer: Beyond Efficient Transformer for Long Sequence Time-Series Forecasting.'' \emph{Proceedings of the AAAI Conference on Artificial Intelligence}, 35(12):11106--11115, 2021.
+
+  \item Haixu Wu, Jiehui Xu, Jianmin Wang, and Mingsheng Long. ``Autoformer: Decomposition Transformers with Auto-Correlation for Long-Term Series Forecasting.'' \emph{Advances in Neural Information Processing Systems}, 34:22419--22430, 2021.
+
+  \item Ian J. Goodfellow, Jonathon Shlens, and Christian Szegedy. ``Explaining and Harnessing Adversarial Examples.'' \emph{International Conference on Learning Representations}, 2015.
+
+  \item Aleksander Madry, Aleksandar Makelov, Ludwig Schmidt, Dimitris Tsipras, and Adrian Vladu. ``Towards Deep Learning Models Resistant to Adversarial Attacks.'' \emph{International Conference on Learning Representations}, 2018.
+
+  \item Ane Bl\'{a}zquez-Garc\'{i}a, Angel Conde, Usue Mori, and Jose A. Lozano. ``A Review on Outlier/Anomaly Detection in Time Series Data.'' \emph{ACM Computing Surveys}, 54(3), Article 56, 2021.
+
+  \item Tilmann Gneiting and Adrian E. Raftery. ``Strictly Proper Scoring Rules, Prediction, and Estimation.'' \emph{Journal of the American Statistical Association}, 102(477):359--378, 2007.
+\end{enumerate}
 
 \end{document}

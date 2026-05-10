@@ -36,7 +36,8 @@ which uncertainty signals are useful for downstream anomaly-aware decision makin
 │   ├── download_data.py
 │   ├── run_naive.py
 │   ├── run_arima.py
-│   └── run_lstm.py
+│   ├── run_lstm.py
+│	└── make_figures.py
 ├── results/                 # Metrics tables, plots
 ├── report/                  # Progress report
 └── notebooks/               # Exploratory analysis

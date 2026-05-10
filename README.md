@@ -1,10 +1,11 @@
 # Probabilistic Forecasting with Anomaly Injection
 
-CENG 463 — Introduction to Machine Learning — Term Project (Spring 2026)
-İzmir Institute of Technology — Prof. Dr. Aytuğ Onan
+CENG 463 — Introduction to Machine Learning — Term Project  
+İzmir Institute of Technology — Spring 2026
 
-**Project topic:** *Probabilistic Forecasting with Anomaly Injection*.
-**Dataset:** Jena Climate (multivariate hourly weather, ~420K rows, 14 variables).
+**Student:** Ozan Erdoğan
+**Instructor:** Prof. Dr. Aytuğ Onan
+**Dataset:** Jena Climate, a multivariate weather time-series dataset with approximately 420K raw observations and 14 meteorological variables.
 
 ---
 

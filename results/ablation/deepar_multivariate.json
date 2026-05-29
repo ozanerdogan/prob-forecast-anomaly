@@ -1,0 +1,22 @@
+{
+  "crps": 0.08041649009820315,
+  "pinball": 0.040208245049101574,
+  "picp": 0.9885097493036211,
+  "mpiw": 0.7563280658249574,
+  "mis": 0.7936666190988982,
+  "picp_alpha": 0.9,
+  "rmse": 0.19648908813761054,
+  "mae": 0.13957899717014274,
+  "smape": 6.171261856582398,
+  "mase": 0.053739761439742566,
+  "name": "deepar_multivariate",
+  "axis": "input",
+  "model": "deepar",
+  "use_covariates": true,
+  "lookback": 168,
+  "likelihood": "gaussian",
+  "n_quantiles": 7,
+  "n_features": 9,
+  "epochs": 6,
+  "n_predictions": 8616
+}

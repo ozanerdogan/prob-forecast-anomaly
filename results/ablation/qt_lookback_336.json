@@ -1,0 +1,22 @@
+{
+  "crps": 1.0398168011370321,
+  "pinball": 0.5199084005685161,
+  "picp": 0.9121685606060606,
+  "mpiw": 7.859664763499533,
+  "mis": 9.675881314865732,
+  "picp_alpha": 0.9,
+  "rmse": 2.4524426427632178,
+  "mae": 1.79721245287333,
+  "smape": 32.298910029555245,
+  "mase": 0.6919505830538168,
+  "name": "qt_lookback_336",
+  "axis": "lookback",
+  "model": "qtransformer",
+  "use_covariates": false,
+  "lookback": 336,
+  "likelihood": "gaussian",
+  "n_quantiles": 7,
+  "n_features": 1,
+  "epochs": 6,
+  "n_predictions": 8448
+}

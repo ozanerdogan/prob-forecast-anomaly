@@ -1,0 +1,26 @@
+{
+  "rmse": 5.013654072164292,
+  "mae": 4.00466042944234,
+  "mape": 292.46919442141717,
+  "smape": 118.87130674306879,
+  "mase": 1.5418472727890016,
+  "model": "sarima",
+  "order": [
+    2,
+    1,
+    2
+  ],
+  "seasonal_order": [
+    1,
+    0,
+    1,
+    24
+  ],
+  "target": "T (degC)",
+  "horizon": 24,
+  "refit_every": 50,
+  "window": 2000,
+  "test_subset_hours": 720,
+  "n_predictions": 16728,
+  "role": "seasonal-component control for ARIMA(2,1,2)"
+}

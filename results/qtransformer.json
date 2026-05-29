@@ -1,0 +1,94 @@
+{
+  "crps": 1.0220161001030914,
+  "pinball": 0.5110080500515457,
+  "picp": 0.9048282265552461,
+  "mpiw": 7.486732351100971,
+  "mis": 9.486214795598489,
+  "picp_alpha": 0.9,
+  "rmse": 2.4304359384593623,
+  "mae": 1.7690424700370595,
+  "smape": 32.33344080529214,
+  "mase": 0.6811047667915214,
+  "model": "qtransformer",
+  "target": "T (degC)",
+  "lookback": 168,
+  "horizon": 24,
+  "d_model": 64,
+  "nhead": 4,
+  "num_layers": 2,
+  "epochs": 12,
+  "quantiles": [
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    0.9,
+    0.95
+  ],
+  "n_predictions": 8616,
+  "device": "cuda",
+  "smoke": false,
+  "history": [
+    {
+      "epoch": 1,
+      "train_pinball": 0.10424848934452907,
+      "val_pinball": 0.07698938729210272
+    },
+    {
+      "epoch": 2,
+      "train_pinball": 0.0717174304904891,
+      "val_pinball": 0.07345167741012973
+    },
+    {
+      "epoch": 3,
+      "train_pinball": 0.06970913342985452,
+      "val_pinball": 0.07137857943606776
+    },
+    {
+      "epoch": 4,
+      "train_pinball": 0.06843160861628313,
+      "val_pinball": 0.07025053782919266
+    },
+    {
+      "epoch": 5,
+      "train_pinball": 0.06739576321606543,
+      "val_pinball": 0.07045557314540421
+    },
+    {
+      "epoch": 6,
+      "train_pinball": 0.0667805611064621,
+      "val_pinball": 0.07006640607418295
+    },
+    {
+      "epoch": 7,
+      "train_pinball": 0.06622315039310385,
+      "val_pinball": 0.07056566746125008
+    },
+    {
+      "epoch": 8,
+      "train_pinball": 0.06566172094979122,
+      "val_pinball": 0.06965498135076555
+    },
+    {
+      "epoch": 9,
+      "train_pinball": 0.06533427512747984,
+      "val_pinball": 0.07018229161394375
+    },
+    {
+      "epoch": 10,
+      "train_pinball": 0.06514631505763414,
+      "val_pinball": 0.06908849397851102
+    },
+    {
+      "epoch": 11,
+      "train_pinball": 0.0647358994967505,
+      "val_pinball": 0.06928998360920219
+    },
+    {
+      "epoch": 12,
+      "train_pinball": 0.06439560003505618,
+      "val_pinball": 0.07012853232425684
+    }
+  ]
+}

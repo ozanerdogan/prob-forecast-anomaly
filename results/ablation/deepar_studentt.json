@@ -1,0 +1,22 @@
+{
+  "crps": 1.3329654871691379,
+  "pinball": 0.6664827435845689,
+  "picp": 0.8503946146703807,
+  "mpiw": 8.789049082564393,
+  "mis": 12.401370003811628,
+  "picp_alpha": 0.9,
+  "rmse": 2.9762178132622705,
+  "mae": 2.3004265379852606,
+  "smape": 39.659035623379694,
+  "mase": 0.8856946665857347,
+  "name": "deepar_studentt",
+  "axis": "likelihood",
+  "model": "deepar",
+  "use_covariates": false,
+  "lookback": 168,
+  "likelihood": "studentt",
+  "n_quantiles": 7,
+  "n_features": 1,
+  "epochs": 6,
+  "n_predictions": 8616
+}

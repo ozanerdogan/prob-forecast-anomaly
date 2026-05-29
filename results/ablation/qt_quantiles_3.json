@@ -1,0 +1,22 @@
+{
+  "crps": 1.1368243617650926,
+  "pinball": 0.5684121808825463,
+  "picp": 0.8261374187558032,
+  "mpiw": 6.125136389033495,
+  "mis": 9.984349694702871,
+  "picp_alpha": 0.9,
+  "rmse": 2.4430621743492957,
+  "mae": 1.7995244769216416,
+  "smape": 32.89612534538445,
+  "mase": 0.692840742915388,
+  "name": "qt_quantiles_3",
+  "axis": "quantiles",
+  "model": "qtransformer",
+  "use_covariates": false,
+  "lookback": 168,
+  "likelihood": "gaussian",
+  "n_quantiles": 3,
+  "n_features": 1,
+  "epochs": 6,
+  "n_predictions": 8616
+}

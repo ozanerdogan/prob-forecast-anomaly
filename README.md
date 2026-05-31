@@ -135,6 +135,46 @@ Results are written to `results/` (per-model JSON, `results/ablation/`, and
 
 Heavy scripts accept `--smoke` for a fast 1-epoch sanity pass.
 
+## Reproducibility
+
+**One global seed: `42`.** It is fixed in every component that draws randomness,
+so a given model on a given machine reproduces the same scores on every run.
+
+| What | Where the seed lives | How it is applied |
+| --- | --- | --- |
+| LSTM baseline | `LstmConfig.seed` (`src/baselines/lstm_baseline.py`) | `torch.manual_seed` + `np.random.seed` at the top of `train_lstm`, before the shuffled `DataLoader` |
+| DeepAR (training) | `DeepARConfig.seed` (`src/models/deepar.py`) | `torch.manual_seed` + `np.random.seed` at the top of `train_deepar` |
+| DeepAR (sampling) | `DeepARConfig.seed` | `sample_forecast` reseeds `torch` (+CUDA) **before drawing trajectories**, so PICP/CRPS are identical across runs |
+| Quantile Transformer | `QTransformerConfig.seed` (`src/models/quantile_transformer.py`) | `torch.manual_seed` + `np.random.seed` at the top of `train_qtransformer` |
+| Anomaly injection / robustness sweep | `SEED = 42` at the top of `scripts/run_anomaly_eval.py` and `scripts/run_error_analysis.py` | `np.random.default_rng(SEED)` per (anomaly type, intensity); injectors in `src/anomaly.py` receive the generator explicitly and never create their own |
+| Figures | `np.random.default_rng(42)` in `scripts/make_figures.py` | passed into the anomaly injectors |
+
+**To change the seed:** pass a different `seed=` when constructing the config
+(e.g. `DeepARConfig(seed=7)`), or edit the `seed` default in the dataclass; for
+the anomaly/error-analysis scripts edit the `SEED` constant at the top of the file.
+
+**What can still vary:**
+- **Hardware / driver / library version.** cuDNN kernels are not guaranteed
+  bit-identical across different GPUs, CUDA/cuDNN versions, or PyTorch builds, so
+  the last few decimals may shift on a different machine. On a *fixed* machine,
+  repeated runs are bit-identical (verified: DeepAR clean PICP/CRPS match exactly
+  between `deepar.json` and `anomaly_eval.json`).
+- **ARIMA / SARIMA** use deterministic MLE fitting (statsmodels) — no seed needed.
+- **Committed figure PNGs** under `results/figures/` were rendered before the
+  DeepAR sampling-seed fix; they are qualitatively unchanged but not bit-aligned
+  to the refreshed JSONs. Run `python scripts/make_figures.py --phase 2` to
+  regenerate them under the seeded pipeline.
+
+**Tests.** All unit tests live in `tests/test_metrics.py` and are fully
+self-contained: pure-NumPy/SciPy checks of the metric functions with no dataset
+download, model training, or GPU. They run independently in a couple of seconds:
+
+```bash
+pytest                      # or: pytest tests/test_metrics.py -q
+```
+
+The single randomised fixture uses a fixed seed, so the suite is deterministic.
+
 ## Dataset
 
 **Jena Climate 2009–2016** — recorded by the Max Planck Institute for Biogeochemistry, Jena,

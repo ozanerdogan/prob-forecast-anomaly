@@ -2,8 +2,9 @@
 
 Target-only, lookback=168, horizon=24 (matching the Phase-1 LSTM baseline).
 Produces probabilistic scores (CRPS, pinball, PICP, MPIW, MIS) alongside point
-scores (RMSE/MAE off the predictive median, sMAPE, MASE). CRPS is reported from
-the raw sample ensemble (most accurate) rather than the quantile approximation.
+scores (RMSE/MAE off the predictive median, sMAPE, MASE). CRPS is reported via
+the quantile approximation (2x mean pinball loss) so it is directly comparable
+to the quantile Transformer, which is scored the same way.
 
   python scripts/run_deepar.py            # full run
   python scripts/run_deepar.py --smoke    # tiny end-to-end sanity run
@@ -24,7 +25,6 @@ sys.path.insert(0, str(ROOT))
 from src.data_loader import load_hourly  # noqa: E402
 from src.features import build_feature_frame  # noqa: E402
 from src.metrics import (  # noqa: E402
-    crps_ensemble,
     mase,
     report_probabilistic,
     smape,
@@ -88,10 +88,10 @@ def main() -> None:
     q_preds = quantiles_from_samples(samples, QUANTILES)  # (N, H, Q)
     q_flat = q_preds.reshape(-1, len(QUANTILES))
     y_flat = y_true.reshape(-1)
-    samp_flat = samples.transpose(0, 2, 1).reshape(-1, cfg.n_samples)  # (N*H, S)
 
+    # CRPS via the quantile approximation (2x mean pinball), matching the
+    # quantile Transformer so DeepAR-vs-QT comparisons are on equal footing.
     metrics = report_probabilistic(y_flat, q_flat, QUANTILES, alpha=ALPHA)
-    metrics["crps"] = crps_ensemble(y_flat, samp_flat)  # ensemble estimate (overrides approx)
     metrics["smape"] = smape(y_flat, q_preds[:, :, np.argmin(np.abs(QUANTILES - 0.5))].reshape(-1))
     metrics["mase"] = mase(y_flat, q_flat[:, np.argmin(np.abs(QUANTILES - 0.5))],
                            splits.train[TARGET].to_numpy(), season=24)

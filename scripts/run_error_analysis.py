@@ -80,8 +80,8 @@ def main() -> None:
 
     # Clean predictions.
     p_lstm = inv(E.lstm_predict(lstm, x_te[:, :, 0]))
-    q_da, samp_da = E.deepar_predict(deepar, deepar_cfg, yseq_te, cov_te, QUANTILES)
-    q_da, samp_da = inv(q_da), inv(samp_da)
+    q_da, _ = E.deepar_predict(deepar, deepar_cfg, yseq_te, cov_te, QUANTILES)
+    q_da = inv(q_da)
     q_qt = inv(E.qtransformer_predict(qt, x_te))
     med_da, med_qt = _median(q_da), _median(q_qt)
 
@@ -97,7 +97,7 @@ def main() -> None:
         "per_horizon": {
             "lstm": EA.per_horizon_point(y_true, p_lstm),
             "deepar": {**EA.per_horizon_point(y_true, med_da),
-                       "crps": EA.per_horizon_crps(y_true, samp_da)},
+                       "crps": _per_horizon_crps_q(y_true, q_da)},
             "qtransformer": {**EA.per_horizon_point(y_true, med_qt),
                              "crps": _per_horizon_crps_q(y_true, q_qt)},
         },

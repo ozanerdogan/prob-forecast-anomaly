@@ -19,7 +19,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from src.metrics import crps_ensemble, mae, rmse
+from src.metrics import mae, rmse
 
 # DJF / MAM / JJA / SON
 _SEASON = {12: "DJF", 1: "DJF", 2: "DJF", 3: "MAM", 4: "MAM", 5: "MAM",
@@ -35,12 +35,6 @@ def per_horizon_point(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
         "rmse": [rmse(y_true[:, k], y_pred[:, k]) for k in range(h)],
         "mae": [mae(y_true[:, k], y_pred[:, k]) for k in range(h)],
     }
-
-
-def per_horizon_crps(y_true: np.ndarray, samples: np.ndarray) -> list[float]:
-    """CRPS at each horizon step from samples (N, S, H), y_true (N, H)."""
-    h = y_true.shape[1]
-    return [crps_ensemble(y_true[:, k], samples[:, :, k]) for k in range(h)]
 
 
 def target_months(test_index: pd.DatetimeIndex, n_windows: int, lookback: int,

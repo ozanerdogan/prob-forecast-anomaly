@@ -91,6 +91,28 @@
       "n_predictions": 8616
     },
     {
+      "crps": 1.9309153720864862,
+      "pinball": 0.9654576860432431,
+      "picp": 0.54491643454039,
+      "mpiw": 4.848805239645004,
+      "mis": 25.522280845730318,
+      "picp_alpha": 0.9,
+      "rmse": 3.781193048644114,
+      "mae": 2.778462661403308,
+      "smape": 45.03562706443623,
+      "mase": 1.0697449015988891,
+      "name": "deepar_past_covariate",
+      "axis": "input",
+      "model": "deepar",
+      "use_covariates": true,
+      "lookback": 168,
+      "likelihood": "gaussian",
+      "n_quantiles": 7,
+      "n_features": 9,
+      "epochs": 6,
+      "n_predictions": 8616
+    },
+    {
       "crps": 1.03460894390366,
       "pinball": 0.51730447195183,
       "picp": 0.9261937557392103,
@@ -257,6 +279,18 @@
       "mis": 0.8228,
       "rmse": 0.2103,
       "mae": 0.1524
+    },
+    {
+      "name": "deepar_past_covariate",
+      "axis": "input",
+      "model": "deepar",
+      "crps": 1.9309,
+      "pinball": 0.9655,
+      "picp": 0.5449,
+      "mpiw": 4.8488,
+      "mis": 25.5223,
+      "rmse": 3.7812,
+      "mae": 2.7785
     },
     {
       "name": "deepar_target_only",

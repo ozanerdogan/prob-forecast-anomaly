@@ -3,7 +3,12 @@
 Four axes, each varying one factor from a common base while holding everything
 else fixed, so the effect is attributable:
 
-  - input:      target-only vs multivariate (exogenous covariates)   [both models]
+  - input:      target-only vs multivariate covariates              [both models]
+                DeepAR also gets a leakage-free ``past_covariate`` variant
+                (future weather frozen at the origin); its ``multivariate`` is
+                the future-leaking *oracle* upper bound. The Transformer encoder
+                never reads horizon covariates, so its ``multivariate`` is
+                already past-covariate (no separate variant needed).
   - lookback:   L in {72, 168, 336}                                  [Transformer]
   - likelihood: Gaussian vs Student-t                                [DeepAR]
   - quantiles:  3 vs 7 quantile levels                               [Transformer]
@@ -19,6 +24,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from src import experiment as E
+from src.features import N_CALENDAR_FEATURES
 from src.metrics import mase, report_probabilistic, smape
 from src.models.deepar import DeepARConfig, quantiles_from_samples, sample_forecast
 from src.models.quantile_transformer import (
@@ -28,7 +34,7 @@ from src.models.quantile_transformer import (
     predict_quantiles,
 )
 from src.preprocessing import TARGET
-from src.seq_data import make_ar_windows, make_encoder_windows
+from src.seq_data import freeze_future_covariates, make_ar_windows, make_encoder_windows
 
 ALPHA = 0.1
 
@@ -43,6 +49,7 @@ class Variant:
     likelihood: str = "gaussian"
     quantiles: tuple[float, ...] = QUANTILES_7
     epochs: int = 6
+    freeze_future: bool = False  # past-covariate: freeze horizon weather at origin
 
 
 def default_variants(epochs: int = 6) -> list[Variant]:
@@ -51,6 +58,12 @@ def default_variants(epochs: int = 6) -> list[Variant]:
     for model in ("deepar", "qtransformer"):
         v.append(Variant(f"{model}_target_only", "input", model, use_covariates=False, epochs=epochs))
         v.append(Variant(f"{model}_multivariate", "input", model, use_covariates=True, epochs=epochs))
+    # leakage-free past-covariate variant (DeepAR only: it is the autoregressive
+    # model that otherwise consumes true future weather in the rollout; the QT
+    # encoder never sees horizon covariates, so qtransformer_multivariate already
+    # is the past-covariate setting).
+    v.append(Variant("deepar_past_covariate", "input", "deepar",
+                     use_covariates=True, freeze_future=True, epochs=epochs))
     # axis 2: lookback (Transformer)
     for L in (72, 168, 336):
         v.append(Variant(f"qt_lookback_{L}", "lookback", "qtransformer", lookback=L, epochs=epochs))
@@ -76,8 +89,10 @@ def run_variant(spec: Variant) -> dict:
             n_covariates=data.n_features - 1, likelihood=spec.likelihood,
             epochs=spec.epochs,
         )
-        model = E.fit_deepar(data, cfg)
+        model = E.fit_deepar(data, cfg, freeze_future=spec.freeze_future)
         yseq_te, cov_te = make_ar_windows(data.test, cfg.lookback, H, stride=H)
+        if spec.freeze_future:
+            cov_te = freeze_future_covariates(cov_te, cfg.lookback, N_CALENDAR_FEATURES)
         samples = sample_forecast(model, yseq_te, cov_te, cfg, device=E.DEVICE, batch_size=128)
         q_preds = quantiles_from_samples(samples, quantiles)
         y_true = inv(yseq_te[:, cfg.lookback :])

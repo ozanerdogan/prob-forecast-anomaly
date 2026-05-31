@@ -26,26 +26,47 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--epochs", type=int, default=6)
+    parser.add_argument(
+        "--variants", type=str, default=None,
+        help="comma-separated variant names to (re)run; default: all. ablation.json "
+             "is always rebuilt from every per-variant file on disk, so a targeted "
+             "run preserves the rows it did not recompute.",
+    )
     args = parser.parse_args()
 
     epochs = 1 if args.smoke else args.epochs
-    variants = default_variants(epochs=epochs)
+    all_specs = default_variants(epochs=epochs)
+    known_names = [s.name for s in all_specs]
+
+    if args.variants:
+        wanted = {n.strip() for n in args.variants.split(",") if n.strip()}
+        unknown = wanted - set(known_names)
+        if unknown:
+            raise SystemExit(f"Unknown variant(s): {sorted(unknown)}. Known: {known_names}")
+        specs = [s for s in all_specs if s.name in wanted]
+    else:
+        specs = all_specs
 
     out_dir = ROOT / "results"
     var_dir = out_dir / "ablation"
     var_dir.mkdir(parents=True, exist_ok=True)
 
-    results = []
-    for i, spec in enumerate(variants, 1):
-        print(f"[{i}/{len(variants)}] {spec.axis:11s} {spec.name} ...")
+    for i, spec in enumerate(specs, 1):
+        print(f"[{i}/{len(specs)}] {spec.axis:11s} {spec.name} ...")
         res = run_variant(spec)
         (var_dir / f"{spec.name}.json").write_text(json.dumps(res, indent=2))
-        results.append(res)
         print(f"    crps={res['crps']:.3f} pinball={res['pinball']:.3f} "
               f"picp={res['picp']:.3f} mis={res['mis']:.3f} rmse={res['rmse']:.3f}")
 
-    table = comparison_table(results)
-    summary = {"epochs": epochs, "smoke": bool(args.smoke), "variants": results, "table": table}
+    # Rebuild ablation.json from all per-variant files on disk (in the known
+    # variant order) so a targeted --variants run keeps the untouched rows.
+    all_results = []
+    for name in known_names:
+        p = var_dir / f"{name}.json"
+        if p.exists():
+            all_results.append(json.loads(p.read_text()))
+    table = comparison_table(all_results)
+    summary = {"epochs": epochs, "smoke": bool(args.smoke), "variants": all_results, "table": table}
     (out_dir / "ablation.json").write_text(json.dumps(summary, indent=2))
 
     print("\nComparison table (by axis):")

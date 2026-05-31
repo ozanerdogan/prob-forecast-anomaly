@@ -22,7 +22,7 @@ import torch
 
 from src.baselines.lstm_baseline import LstmConfig, LstmForecaster, train_lstm
 from src.data_loader import load_hourly
-from src.features import build_feature_frame
+from src.features import N_CALENDAR_FEATURES, build_feature_frame
 from src.models.deepar import (
     DeepAR,
     DeepARConfig,
@@ -38,7 +38,7 @@ from src.models.quantile_transformer import (
     train_qtransformer,
 )
 from src.preprocessing import Standardizer, TARGET, chronological_split
-from src.seq_data import make_ar_windows, make_encoder_windows
+from src.seq_data import freeze_future_covariates, make_ar_windows, make_encoder_windows
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -83,9 +83,15 @@ def fit_lstm(data: Data, cfg: LstmConfig) -> LstmForecaster:
     return model
 
 
-def fit_deepar(data: Data, cfg: DeepARConfig) -> DeepAR:
+def fit_deepar(data: Data, cfg: DeepARConfig, freeze_future: bool = False) -> DeepAR:
     y_tr, cov_tr = make_ar_windows(data.train, cfg.lookback, cfg.horizon, stride=1)
     y_va, cov_va = make_ar_windows(data.val, cfg.lookback, cfg.horizon, stride=cfg.horizon)
+    if freeze_future:
+        # Realistic past-covariate setting: training must not see true future
+        # weather either (calendar channels stay true future). Applied to train
+        # and val so training matches the frozen-future inference convention.
+        cov_tr = freeze_future_covariates(cov_tr, cfg.lookback, N_CALENDAR_FEATURES)
+        cov_va = freeze_future_covariates(cov_va, cfg.lookback, N_CALENDAR_FEATURES)
     model, _ = train_deepar(y_tr, cov_tr, y_va, cov_va, cfg, device=DEVICE)
     return model
 

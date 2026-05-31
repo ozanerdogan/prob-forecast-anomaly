@@ -34,6 +34,7 @@ sys.path.insert(0, str(ROOT))
 from src import experiment as E  # noqa: E402
 from src.anomaly import apply_anomaly, linf_fgsm  # noqa: E402
 from src.baselines.lstm_baseline import LstmConfig  # noqa: E402
+from src.baselines.naive_seasonal import naive_seasonal_forecast  # noqa: E402
 from src.calibration import apply_spread_temperature, coverage_at, fit_spread_temperature  # noqa: E402
 from src.metrics import mean_pinball_loss, mis, report, report_probabilistic  # noqa: E402
 from src.models.deepar import DeepARConfig  # noqa: E402
@@ -56,6 +57,17 @@ def _prob_scores(y_true_flat, q_flat):
 def _point_scores(y_true_flat, y_pred_flat):
     r = report(y_true_flat, y_pred_flat)
     return {"rmse": r["rmse"], "mae": r["mae"]}
+
+
+def _naive_forecast_batch(ctx, horizon, season=24):
+    """Seasonal-naive forecast per context row: (N, L) -> (N, horizon).
+
+    Untrained baseline; reuses naive_seasonal_forecast on each (possibly
+    anomaly-injected) context window. Operates in standardised space. With
+    horizon == season this is exactly the last season of each context, so any
+    perturbation landing in that trailing window propagates into the forecast.
+    """
+    return np.stack([naive_seasonal_forecast(ctx[i], horizon, season) for i in range(len(ctx))])
 
 
 def main() -> None:
@@ -131,6 +143,8 @@ def main() -> None:
             "lstm_epochs": lstm_cfg.epochs,
             "deepar_epochs": deepar_cfg.epochs,
             "qt_epochs": qt_cfg.epochs,
+            "deterministic_models": ["lstm", "naive_seasonal"],
+            "naive_fgsm": "N/A (FGSM is white-box; naive_seasonal has no gradient)",
         },
         "quantiles": QUANTILES.tolist(),
         "calibration_tau": tau,
@@ -142,6 +156,9 @@ def main() -> None:
     q_clean_qt = E.qtransformer_predict(qt, x_te)
     p_clean_lstm = E.lstm_predict(lstm, x_te[:, :, 0])
     results["clean"]["lstm"] = _point_scores(y_true_flat, inv(p_clean_lstm).reshape(-1))
+    results["clean"]["naive_seasonal"] = _point_scores(
+        y_true_flat, inv(_naive_forecast_batch(x_te[:, :, 0], H)).reshape(-1)
+    )
     results["clean"]["deepar"] = prob_block(inv(q_clean_deepar), "deepar")
     results["clean"]["qtransformer"] = prob_block(inv(q_clean_qt), "qtransformer")
 
@@ -175,6 +192,16 @@ def main() -> None:
             # LSTM
             p = E.lstm_predict(lstm, ctx_lstm)
             rec["lstm"] = _point_scores(y_true_flat, inv(p).reshape(-1))
+
+            # naive_seasonal (untrained, deterministic): shares the same injected
+            # context as LSTM for the non-gradient anomalies; FGSM is white-box and
+            # undefined for a non-differentiable model -> recorded as N/A.
+            if kind == "fgsm":
+                rec["naive_seasonal"] = {"rmse": None, "mae": None}
+            else:
+                rec["naive_seasonal"] = _point_scores(
+                    y_true_flat, inv(_naive_forecast_batch(ctx_lstm, H)).reshape(-1)
+                )
 
             # DeepAR
             yseq_adv = yseq_te.copy()

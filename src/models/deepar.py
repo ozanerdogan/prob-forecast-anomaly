@@ -12,8 +12,9 @@ Likelihoods:
   - "studentt"  -> StudentT(df=nu, loc=mu, scale=sigma)   (heavier tails; df>2)
 
 Defaults match the Phase-1 LSTM baseline (lookback=168, horizon=24) so the
-probabilistic vs deterministic comparison is on equal footing. Training uses
-torch.manual_seed(42).
+probabilistic vs deterministic comparison is on equal footing. Training and
+inference sampling are both seeded with cfg.seed (42) so a fixed model produces
+the same samples — hence the same PICP/CRPS — on every run.
 """
 from __future__ import annotations
 
@@ -177,8 +178,15 @@ def sample_forecast(
              the trailing H are ignored (filled at evaluation by the true target).
     cov_seq: (N, L+H, C)
     Returns samples of shape (N, n_samples, H) in scaled space.
+
+    The RNG is reseeded to ``cfg.seed`` before drawing trajectories, so a fixed
+    model evaluated on fixed data yields identical samples — and therefore
+    identical quantiles / PICP / CRPS — on every run and across scripts.
     """
     model.eval()
+    torch.manual_seed(cfg.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(cfg.seed)
     L, H = cfg.lookback, cfg.horizon
     S = cfg.n_samples
     out: list[np.ndarray] = []

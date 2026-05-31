@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.baselines.lstm_baseline import LstmConfig, predict, train_lstm  # noqa: E402
 from src.data_loader import load_hourly  # noqa: E402
-from src.metrics import report  # noqa: E402
+from src.metrics import mase, report, smape  # noqa: E402
 from src.preprocessing import (  # noqa: E402
     Standardizer,
     TARGET,
@@ -45,6 +45,8 @@ def main() -> None:
     y_true = scaler.inverse_target(y_te, TARGET).reshape(-1)
 
     metrics = report(y_true, y_pred)
+    metrics["smape"] = smape(y_true, y_pred)
+    metrics["mase"] = mase(y_true, y_pred, splits.train[TARGET].to_numpy(), season=24)
     metrics.update(
         model="lstm",
         target=TARGET,

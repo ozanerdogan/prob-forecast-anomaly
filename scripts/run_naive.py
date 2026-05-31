@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.baselines.naive_seasonal import rolling_naive_predictions  # noqa: E402
 from src.data_loader import load_hourly  # noqa: E402
-from src.metrics import report  # noqa: E402
+from src.metrics import mase, report, smape  # noqa: E402
 from src.preprocessing import TARGET, chronological_split  # noqa: E402
 
 HORIZON = 24
@@ -23,6 +23,8 @@ def main() -> None:
     y_test = splits.y_test()
     y_true, y_pred = rolling_naive_predictions(y_test, HORIZON, SEASON_LENGTH)
     metrics = report(y_true, y_pred)
+    metrics["smape"] = smape(y_true, y_pred)
+    metrics["mase"] = mase(y_true, y_pred, splits.y_train(), season=SEASON_LENGTH)
     metrics.update(
         model="naive_seasonal",
         target=TARGET,

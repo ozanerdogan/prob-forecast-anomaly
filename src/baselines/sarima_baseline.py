@@ -4,14 +4,20 @@ This is NOT introduced to inflate the baseline count. Its sole purpose is to act
 as a *control* for the plain ARIMA baseline: ARIMA(2,1,2) scores poorly on the
 hourly temperature series, and the open question is whether that is because it
 lacks an explicit seasonal component. SARIMA keeps the same non-seasonal order
-(2,1,2) and adds a daily seasonal order (1,0,1,24), so any improvement is
-attributable to the seasonal terms alone.
+(2,1,2) and adds a daily seasonal order (1,0,1,24).
 
 We reuse the ARIMA batch rolling-origin scheme (refit every ``refit_every``
 origins, cached fit in between). Because a seasonal s=24 SARIMAX fit is roughly
 an order of magnitude slower than ARIMA, we fit on a shorter recent window
-(default 2000 hours) and the runner evaluates a small test subset. The seasonal
-period is fixed to 24 (daily cycle on hourly data).
+(default 2000 hours, vs ARIMA's 8000) and the runner evaluates a small test
+subset. The seasonal period is fixed to 24 (daily cycle on hourly data).
+
+CAVEAT (not a perfectly clean control): SARIMA therefore differs from ARIMA in
+*two* ways -- the seasonal order AND the fit-window length (2000 vs 8000h) -- so
+the shorter window handicaps SARIMA and pushes its error up. The ARIMA-vs-SARIMA
+gap cannot be attributed to seasonality *alone*. Both windows still hold 80+
+daily cycles so the qualitative comparison is informative, but a strict
+single-variable isolation would match the fit windows. The report discusses this.
 """
 from __future__ import annotations
 
@@ -28,7 +34,7 @@ class SarimaConfig:
     seasonal_order: tuple[int, int, int, int] = (1, 0, 1, 24)
     horizon: int = 24
     refit_every: int = 50  # in number of origins
-    window: int = 2000  # recent history used for each fit (seasonal fits are slow)
+    window: int = 2000  # recent history per fit (seasonal fits are slow; ARIMA uses 8000 -- see the control caveat in the module docstring)
 
 
 def rolling_sarima_predictions(

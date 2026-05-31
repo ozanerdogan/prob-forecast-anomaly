@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.baselines.arima_baseline import ArimaConfig, rolling_arima_predictions  # noqa: E402
 from src.data_loader import load_hourly  # noqa: E402
-from src.metrics import report  # noqa: E402
+from src.metrics import mase, report, smape  # noqa: E402
 from src.preprocessing import TARGET, chronological_split  # noqa: E402
 
 ORDER = (2, 1, 2)
@@ -37,6 +37,8 @@ def main() -> None:
     print(f"Running ARIMA{ORDER} on train (n={len(train)}) -> test_subset (n={len(test)})")
     y_true, y_pred = rolling_arima_predictions(train, test, config)
     metrics = report(y_true, y_pred)
+    metrics["smape"] = smape(y_true, y_pred)
+    metrics["mase"] = mase(y_true, y_pred, train, season=24)
     metrics.update(
         model="arima",
         order=list(ORDER),

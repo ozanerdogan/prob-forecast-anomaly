@@ -192,8 +192,8 @@ def report_probabilistic(
     """Aggregate probabilistic scores from a quantile forecast.
 
     ``q_preds`` shape (N, Q) aligned with ``quantiles``. The central
-    (1-alpha) interval is taken from the alpha/2 and 1-alpha/2 quantiles if
-    present, otherwise from the outermost available quantiles.
+    (1-alpha) interval is taken from the quantile levels nearest to alpha/2 and
+    1-alpha/2 (exact when those levels are present).
     """
     y_true = np.asarray(y_true, dtype=float).reshape(-1)
     q_preds = np.asarray(q_preds, dtype=float)

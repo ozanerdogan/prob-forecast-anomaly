@@ -1,10 +1,9 @@
 """Post-hoc calibration for probabilistic forecasts.
 
-Both probabilistic models tend to be mis-calibrated out of the box (DeepAR is
-under-confident/over-confident depending on the run; the Transformer's pinball
-quantiles need not be calibrated either). We fit a single scalar *spread
-temperature* tau on the validation set that rescales the predictive spread
-around the median:
+Both probabilistic models tend to be mis-calibrated out of the box (DeepAR's
+sampled intervals are typically too narrow; the Transformer's pinball quantiles
+are not coverage-calibrated either). We fit a single scalar *spread temperature*
+tau on the validation set that rescales the predictive spread around the median:
 
     q_calibrated = median + tau * (q - median)
 

@@ -1,7 +1,8 @@
-"""Single-step LSTM baseline (deterministic point forecast).
+"""Direct multi-horizon LSTM baseline (deterministic point forecast).
 
 Phase 1 scope: a small LSTM trained to map a 168-hour lookback window to a
-24-hour forecast horizon. Outputs a point forecast — no distributional head.
+24-hour forecast horizon. The whole horizon is emitted in one shot by a linear
+head (not autoregressive). Outputs a point forecast — no distributional head.
 DeepAR / probabilistic Transformer come in later phases.
 """
 from __future__ import annotations

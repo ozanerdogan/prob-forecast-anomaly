@@ -54,6 +54,9 @@ def rolling_arima_predictions(
     for k, t in enumerate(range(n)):
         origin = train_end + t
         if cached_fit is None or (k % config.refit_every == 0):
+            # Cap the fit history at the most recent 8000 hours (~11 months):
+            # long enough to capture seasonal structure, short enough to keep
+            # each ARIMA refit fast on the rolling origins.
             window_size = min(8000, origin)
             history = full[origin - window_size : origin]
             try:

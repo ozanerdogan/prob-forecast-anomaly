@@ -1,7 +1,7 @@
 """Produce progress-report figures.
 
-Phase-1 figures are written as PDF (vector) into ``results/figures/`` (unchanged).
-Phase-2 figures are written as PNG into the same directory.
+Phase-1 figures are written as PDF (vector) into ``results/figures/``; Phase-2
+figures are written as PNG into the same directory.
 
 Phase-1 figures (PDF):
   1. jena_series_split.pdf       -- target series + train/val/test markers
@@ -20,7 +20,9 @@ Phase-2 figures (PNG):
 
 Phase-2 figures train the probabilistic models (DeepAR + quantile Transformer)
 on the fly; run the Phase-1 baselines and Phase-2 result scripts first so the
-JSONs the aggregate figures read are present. Phase-1 PDFs are never overwritten.
+JSONs the aggregate figures read are present. ``--phase 2`` writes only the PNGs
+and leaves the Phase-1 PDFs untouched; ``--phase 1`` / ``--phase all`` regenerate
+(overwrite) the PDFs.
 """
 from __future__ import annotations
 
@@ -197,6 +199,8 @@ def fig_seasonal_decomposition() -> None:
 # --------------------------------------------------------------------------- #
 # Phase-2 figures (PNG). These train the probabilistic models on the fly.
 # --------------------------------------------------------------------------- #
+# Must stay in sync with quantile_transformer.QUANTILES_7. Kept as a literal
+# (not imported) so the Phase-1-only path doesn't pull in torch at module load.
 QUANTILES = np.array([0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95])
 ALPHA = 0.1
 

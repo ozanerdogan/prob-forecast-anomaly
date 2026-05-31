@@ -1,8 +1,9 @@
 """Run the ARIMA baseline on Jena Climate.
 
-For Phase 1 we evaluate on a *subset* of the test split — a few hundred origins
-sampled uniformly — to keep runtime manageable. Full-test ARIMA is deferred to
-the final phase.
+To keep runtime manageable we evaluate on a *subset* of the test split: the
+first 30 days (a contiguous prefix, ~700 rolling origins), the same subset the
+SARIMA control uses (run_sarima.py) so the two are directly comparable.
+Full-test ARIMA is deferred to the final phase.
 """
 from __future__ import annotations
 

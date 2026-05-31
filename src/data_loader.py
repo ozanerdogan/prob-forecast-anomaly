@@ -44,8 +44,9 @@ def to_hourly(df: pd.DataFrame) -> pd.DataFrame:
       - Wind-speed columns occasionally report large negative sentinel values;
         we coerce those to NaN before aggregating.
       - There is a multi-day gap around 2014-09-24 / 2014-09-25 where the
-        station logged no observations. We fill it with linear interpolation
-        on the hourly grid (no limit) so downstream code never sees NaN.
+        station logged no observations. We fill it with time-based interpolation
+        (≈linear on the regular hourly grid, no limit) so downstream code never
+        sees NaN.
       - The final raw timestamp is 2016-12-31 23:50, which falls into the
         2017-01-01 00:00 hour bucket; we drop that incomplete bucket.
     """

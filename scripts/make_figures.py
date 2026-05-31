@@ -369,7 +369,8 @@ def fig_robustness_heatmap() -> None:
         print("  skip robustness_heatmap (run scripts/run_anomaly_eval.py first)")
         return
     r = json.loads(path.read_text())
-    models = ("lstm", "deepar", "qtransformer")
+    # Deterministic models first (lstm, naive_seasonal), then probabilistic.
+    models = ("lstm", "naive_seasonal", "deepar", "qtransformer")
     clean_rmse = {m: r["clean"][m]["rmse"] for m in models}
     types = r["config"]["anomaly_types"]
     intensities = [f"{i:.1f}" for i in r["config"]["intensities"]]
@@ -382,17 +383,21 @@ def fig_robustness_heatmap() -> None:
         row = []
         for kind in types:
             for it in intensities:
-                row.append(r["anomaly"][kind][it][m]["rmse"] / clean_rmse[m])
+                val = r["anomaly"][kind][it][m]["rmse"]  # None for naive under FGSM (N/A)
+                row.append(np.nan if val is None else val / clean_rmse[m])
         mat.append(row)
     mat = np.array(mat)
 
-    fig, ax = plt.subplots(figsize=(9.5, 2.7))
-    im = ax.imshow(mat, aspect="auto", cmap="YlOrRd", vmin=1.0)
+    cmap = plt.cm.YlOrRd.copy()
+    cmap.set_bad("#e8e8e8")  # N/A cells (e.g. naive_seasonal under FGSM)
+    fig, ax = plt.subplots(figsize=(9.5, 3.1))
+    im = ax.imshow(np.ma.masked_invalid(mat), aspect="auto", cmap=cmap, vmin=1.0)
     ax.set_xticks(range(len(cols))); ax.set_xticklabels(cols, fontsize=6)
     ax.set_yticks(range(len(models))); ax.set_yticklabels(models)
     for i in range(len(models)):
         for j in range(len(cols)):
-            ax.text(j, i, f"{mat[i, j]:.1f}", ha="center", va="center", fontsize=6)
+            txt = "N/A" if np.isnan(mat[i, j]) else f"{mat[i, j]:.1f}"
+            ax.text(j, i, txt, ha="center", va="center", fontsize=6)
     ax.set_title("RMSE inflation under anomaly injection (x clean RMSE)")
     fig.colorbar(im, ax=ax, fraction=0.012, pad=0.01)
     out = FIG_DIR / "robustness_heatmap.png"

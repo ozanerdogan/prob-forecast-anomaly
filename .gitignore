@@ -36,3 +36,6 @@ Thumbs.db
 *.log
 logs/
 wandb/
+
+# Temp
+cowork/

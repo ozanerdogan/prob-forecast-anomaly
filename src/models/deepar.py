@@ -196,10 +196,14 @@ def sample_forecast(
         cb = torch.from_numpy(cov_seq[i : i + batch_size]).to(device)
         B = yb.shape[0]
 
-        # Condition on the lookback with teacher forcing to warm the hidden state.
+        # Condition on the lookback with teacher forcing to warm the hidden
+        # state. Covariates must be paired with the *predicted* step to match
+        # the training alignment in forward() (input at step k is y[k] with
+        # cov[k+1]); for k in 0..L-1 that is cov[1..L]. (Target-only mode has
+        # no covariates and skips this branch, so its behaviour is unchanged.)
         x = yb[:, :L].unsqueeze(-1)
         if cb.shape[-1] > 0:
-            x = torch.cat([x, cb[:, :L, :]], dim=-1)
+            x = torch.cat([x, cb[:, 1 : L + 1, :]], dim=-1)
         _, hidden = model.lstm(x)
 
         # Expand state across S sample paths.

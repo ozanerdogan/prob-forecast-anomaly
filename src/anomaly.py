@@ -8,6 +8,12 @@ absolute jump -- this keeps the perturbation comparable across calm and volatile
 stretches of the series. The realised absolute magnitude (mean local-sigma * eps)
 is returned alongside the perturbed context so it can be reported.
 
+The sigma reference differs by family: point_spike and contextual_outlier scale
+by the *per-position* trailing rolling std (``local_rolling_std``), while
+level_shift and fgsm scale by a *single per-window* sigma (``_window_scale``, the
+median of the rolling std). So "1 local sigma" is position-local for the first
+two and window-representative for the latter two.
+
 Anomaly families:
   - point_spike        : a single sharp spike at one random position.
   - contextual_outlier : a short burst (a few steps) offset from local context.

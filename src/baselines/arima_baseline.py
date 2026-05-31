@@ -15,14 +15,13 @@ from dataclasses import dataclass
 import numpy as np
 from statsmodels.tsa.arima.model import ARIMA
 
-warnings.filterwarnings("ignore")
-
 
 @dataclass
 class ArimaConfig:
     order: tuple[int, int, int] = (2, 1, 2)
     horizon: int = 24
     refit_every: int = 50  # in number of origins
+    window: int = 8000  # recent history (hours) used for each fit (~11 months)
 
 
 def rolling_arima_predictions(
@@ -30,12 +29,13 @@ def rolling_arima_predictions(
     test: np.ndarray,
     config: ArimaConfig,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Rolling-origin ARIMA on the test split.
+    """Rolling-origin ARIMA on the test split (batched refit).
 
-    For each origin t in test:
-      - context = train ++ test[:t]
-      - fit ARIMA on a recent window of `context`
-      - forecast `horizon` steps and compare to test[t : t + horizon]
+    We do NOT refit at every origin. Every ``refit_every`` origins we refit on
+    the most recent window of context (train ++ test[:t]); for the origins in
+    between we reuse that cached fit and read the matching slice of its
+    multi-step forecast (steps_ahead .. steps_ahead + horizon). Each origin is
+    scored against test[t : t + horizon].
 
     Returns flattened (y_true, y_pred).
     """
@@ -54,13 +54,15 @@ def rolling_arima_predictions(
     for k, t in enumerate(range(n)):
         origin = train_end + t
         if cached_fit is None or (k % config.refit_every == 0):
-            # Cap the fit history at the most recent 8000 hours (~11 months):
-            # long enough to capture seasonal structure, short enough to keep
-            # each ARIMA refit fast on the rolling origins.
-            window_size = min(8000, origin)
+            # Cap the fit history at the most recent `config.window` hours
+            # (~11 months at the default): long enough to capture seasonal
+            # structure, short enough to keep each ARIMA refit fast.
+            window_size = min(config.window, origin)
             history = full[origin - window_size : origin]
             try:
-                cached_fit = ARIMA(history, order=config.order).fit()
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    cached_fit = ARIMA(history, order=config.order).fit()
                 cached_origin = origin
             except Exception as exc:  # numerical issues on a window
                 print(f"  ARIMA refit failed at origin {origin}: {exc}")
@@ -69,7 +71,9 @@ def rolling_arima_predictions(
         steps_ahead = origin - cached_origin
         forecast_len = steps_ahead + horizon
         try:
-            forecast = cached_fit.forecast(steps=forecast_len)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                forecast = cached_fit.forecast(steps=forecast_len)
         except Exception as exc:
             print(f"  ARIMA forecast failed at origin {origin}: {exc}")
             continue

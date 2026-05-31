@@ -9,6 +9,12 @@ Phase 2 additions:
 The Phase-1 ``report`` is intentionally left untouched so existing baseline
 JSON outputs stay byte-for-byte comparable. Probabilistic models use the new
 ``report_probabilistic`` aggregator.
+
+The runner pipeline scores CRPS via the quantile approximation
+(``crps_from_quantiles`` = 2 * mean pinball), so DeepAR and the Transformer are
+compared on equal footing; ``crps_ensemble`` (sample-based) and ``crps_gaussian``
+(closed-form) are provided for reference and unit tests, not for the headline
+numbers.
 """
 from __future__ import annotations
 
@@ -142,9 +148,15 @@ def crps_from_quantiles(
 ) -> float:
     """Approximate CRPS as 2x the average pinball loss over a quantile grid.
 
-    For a dense, evenly spaced quantile grid this approaches the true CRPS
-    (CRPS = 2 * integral_0^1 pinball_q dq). Lets us score quantile models that
-    do not expose an explicit predictive distribution.
+    Exact identity: CRPS = 2 * integral_0^1 pinball_q dq. Here the integral is
+    approximated by the *unweighted mean* of the pinball losses at the given
+    levels, which equals the integral only for a dense, evenly spaced grid. The
+    grid used in this project (QUANTILES_7 = 0.05,0.1,0.25,0.5,0.75,0.9,0.95) is
+    neither dense nor evenly spaced, so the returned value is a coarse CRPS
+    *proxy* rather than an accurate absolute CRPS -- but it is applied identically
+    to both probabilistic models, so DeepAR-vs-Transformer comparisons stay fair.
+    Lets us score quantile models that do not expose an explicit predictive
+    distribution.
     """
     return 2.0 * mean_pinball_loss(y_true, q_preds, quantiles)
 
@@ -211,7 +223,7 @@ def report_probabilistic(
         "picp": picp(y_true, lower, upper),
         "mpiw": mpiw(lower, upper),
         "mis": mis(y_true, lower, upper, alpha),
-        "picp_alpha": float(1.0 - alpha),
+        "picp_alpha": float(1.0 - alpha),  # nominal target coverage (1 - alpha), not alpha
     }
     # Point metrics off the median (or nearest-to-0.5) quantile.
     med_idx = int(np.argmin(np.abs(quantiles - 0.5)))

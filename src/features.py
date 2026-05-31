@@ -12,7 +12,9 @@ ASSUMPTION: in the multivariate mode we treat the exogenous weather channels as
 "known" over the forecast horizon (perfect-covariate setting). A strict
 operational setup would forecast those too; here the goal is only to measure how
 much richer input *could* help, so this upper-bound assumption is intentional
-and documented. Calendar features are always genuinely known.
+and documented. Calendar features are always genuinely known. (The leakage-free
+``deepar_past_covariate`` ablation later freezes these weather channels at the
+forecast origin via ``seq_data.freeze_future_covariates``.)
 """
 from __future__ import annotations
 

@@ -47,8 +47,9 @@ def to_hourly(df: pd.DataFrame) -> pd.DataFrame:
         station logged no observations. We fill it with time-based interpolation
         (≈linear on the regular hourly grid, no limit) so downstream code never
         sees NaN.
-      - The final raw timestamp is 2016-12-31 23:50, which falls into the
-        2017-01-01 00:00 hour bucket; we drop that incomplete bucket.
+      - The final raw timestamp is 2017-01-01 00:00:00, which lands in its own
+        single-observation 2017-01-01 00:00 hour bucket; we drop that incomplete
+        bucket (the processed series therefore ends at 2016-12-31 23:00).
     """
     cleaned = df.copy()
     for col in ("wv (m/s)", "max. wv (m/s)"):

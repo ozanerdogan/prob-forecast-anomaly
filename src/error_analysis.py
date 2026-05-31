@@ -122,6 +122,6 @@ def worst_window_summary(window_errors: np.ndarray, worst_frac: float = 0.1) -> 
         "mean": float(e.mean()),
         "p90": float(np.percentile(e, 90)),
         "max": float(e.max()),
-        "worst_decile_mean": float(worst.mean()),
+        "worst_decile_mean": float(worst.mean()),  # mean of the worst worst_frac (default 0.1 -> decile)
         "n_windows": int(len(e)),
     }

@@ -118,14 +118,13 @@ def train_deepar(
     model = DeepAR(cfg).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=cfg.lr)
 
-    def loaders(y, cov):
-        ds = TensorDataset(torch.from_numpy(y), torch.from_numpy(cov))
-        return ds
+    def make_dataset(y, cov):
+        return TensorDataset(torch.from_numpy(y), torch.from_numpy(cov))
 
     train_loader = DataLoader(
-        loaders(y_tr, cov_tr), batch_size=cfg.batch_size, shuffle=True, drop_last=True
+        make_dataset(y_tr, cov_tr), batch_size=cfg.batch_size, shuffle=True, drop_last=True
     )
-    val_loader = DataLoader(loaders(y_va, cov_va), batch_size=cfg.batch_size)
+    val_loader = DataLoader(make_dataset(y_va, cov_va), batch_size=cfg.batch_size)
 
     history: list[dict] = []
     for epoch in range(1, cfg.epochs + 1):
@@ -196,14 +195,16 @@ def sample_forecast(
         cb = torch.from_numpy(cov_seq[i : i + batch_size]).to(device)
         B = yb.shape[0]
 
-        # Condition on the lookback with teacher forcing to warm the hidden
-        # state. Covariates must be paired with the *predicted* step to match
-        # the training alignment in forward() (input at step k is y[k] with
-        # cov[k+1]); for k in 0..L-1 that is cov[1..L]. (Target-only mode has
-        # no covariates and skips this branch, so its behaviour is unchanged.)
-        x = yb[:, :L].unsqueeze(-1)
+        # Warm the hidden state on the lookback, but stop one step early: the
+        # last observed pair (y[L-1], cov[L]) is fed as the FIRST rollout step
+        # below, not here, so it is consumed exactly once -- matching training,
+        # where the output predicting y[L] has seen (y[0],cov[1])..(y[L-1],cov[L])
+        # once each. Conditioning therefore covers k in 0..L-2: inputs y[0..L-2]
+        # paired with cov[1..L-1]. (Target-only mode has no covariates and skips
+        # the cat branch.)
+        x = yb[:, : L - 1].unsqueeze(-1)
         if cb.shape[-1] > 0:
-            x = torch.cat([x, cb[:, 1 : L + 1, :]], dim=-1)
+            x = torch.cat([x, cb[:, 1:L, :]], dim=-1)
         _, hidden = model.lstm(x)
 
         # Expand state across S sample paths.

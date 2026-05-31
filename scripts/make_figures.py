@@ -135,6 +135,9 @@ def fig_naive_sample_window() -> None:
 
 
 def fig_baseline_comparison() -> None:
+    # NOTE: ARIMA RMSE is computed on the first 30 days of test (a winter subset;
+    # see scripts/run_arima.py), while Naive/LSTM are full-year. Bar heights are
+    # therefore not strictly comparable across these models.
     rows = []
     for name, file in (
         ("Naive Seasonal", "naive_seasonal.json"),

@@ -21,8 +21,6 @@ from dataclasses import dataclass
 import numpy as np
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 
-warnings.filterwarnings("ignore")
-
 
 @dataclass
 class SarimaConfig:
@@ -62,13 +60,15 @@ def rolling_sarima_predictions(
             window_size = min(config.window, origin)
             history = full[origin - window_size : origin]
             try:
-                cached_fit = SARIMAX(
-                    history,
-                    order=config.order,
-                    seasonal_order=config.seasonal_order,
-                    enforce_stationarity=False,
-                    enforce_invertibility=False,
-                ).fit(disp=False)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    cached_fit = SARIMAX(
+                        history,
+                        order=config.order,
+                        seasonal_order=config.seasonal_order,
+                        enforce_stationarity=False,
+                        enforce_invertibility=False,
+                    ).fit(disp=False)
                 cached_origin = origin
             except Exception as exc:  # numerical issues on a window
                 print(f"  SARIMA refit failed at origin {origin}: {exc}")
@@ -77,7 +77,9 @@ def rolling_sarima_predictions(
         steps_ahead = origin - cached_origin
         forecast_len = steps_ahead + horizon
         try:
-            forecast = cached_fit.forecast(steps=forecast_len)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                forecast = cached_fit.forecast(steps=forecast_len)
         except Exception as exc:
             print(f"  SARIMA forecast failed at origin {origin}: {exc}")
             continue

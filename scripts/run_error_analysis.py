@@ -92,6 +92,7 @@ def main() -> None:
             "lstm_epochs": lstm_cfg.epochs, "deepar_epochs": deepar_cfg.epochs,
             "qt_epochs": qt_cfg.epochs, "smoke": bool(args.smoke),
             "n_windows": n_windows, "horizon": H, "alpha": ALPHA,
+            # bucket labels (see error_analysis.TEMP_EDGES for the numeric cutpoints)
             "temp_edges": list(EA.TEMP_LABELS),
         },
         "per_horizon": {

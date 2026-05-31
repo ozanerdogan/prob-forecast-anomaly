@@ -46,7 +46,7 @@ overconfident-failure analysis), and a **visualization** suite.
 > **Covariate handling (leakage matters).** DeepAR is autoregressive, so feeding
 > the *contemporaneous* exogenous weather over the horizon leaks the answer — its
 > `deepar_multivariate` ablation variant is therefore an **oracle / perfect-covariate
-> upper bound** (CRPS ≈ 0.09, RMSE ≈ 0.21°C — physically impossible, i.e. leakage),
+> upper bound** (CRPS ≈ 0.08, RMSE ≈ 0.20°C — physically impossible, i.e. leakage),
 > not an operational forecast. The realistic **`deepar_past_covariate`** variant
 > freezes horizon weather at the last observed value (persistence) and keeps only
 > the calendar features as true future; once the leakage is removed the exogenous
@@ -171,10 +171,9 @@ the anomaly/error-analysis scripts edit the `SEED` constant at the top of the fi
   repeated runs are bit-identical (verified: DeepAR clean PICP/CRPS match exactly
   between `deepar.json` and `anomaly_eval.json`).
 - **ARIMA / SARIMA** use deterministic MLE fitting (statsmodels) — no seed needed.
-- **Committed figure PNGs** under `results/figures/` were rendered before the
-  DeepAR sampling-seed fix; they are qualitatively unchanged but not bit-aligned
-  to the refreshed JSONs. Run `python scripts/make_figures.py --phase 2` to
-  regenerate them under the seeded pipeline.
+- **Committed figures** under `results/figures/` are rendered from the seeded
+  pipeline and the current result JSONs; re-run `python scripts/make_figures.py
+  --phase all` to regenerate them after any results change.
 
 **Tests.** All unit tests live in `tests/test_metrics.py` and are fully
 self-contained: pure-NumPy/SciPy checks of the metric functions with no dataset

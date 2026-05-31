@@ -25,7 +25,12 @@ def mae(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 
 
 def mape(y_true: np.ndarray, y_pred: np.ndarray, eps: float = 1e-3) -> float:
-    """Symmetric MAPE-style measure that does not blow up near zero."""
+    """Classic Mean Absolute Percentage Error, eps-floored to avoid blow-up.
+
+    The denominator is ``max(|y_true|, eps)`` (the true value, not a symmetric
+    average), so this is the standard MAPE with a small-denominator guard rather
+    than a symmetric measure. For the symmetric variant see ``smape``.
+    """
     denom = np.maximum(np.abs(y_true), eps)
     return float(np.mean(np.abs((y_true - y_pred) / denom)) * 100.0)
 

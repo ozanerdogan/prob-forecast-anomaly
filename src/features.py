@@ -23,6 +23,13 @@ import pandas as pd
 # physically related to temperature without being trivially collinear with it.
 DEFAULT_COVARIATES = ["p (mbar)", "rh (%)", "VPmax (mbar)", "wv (m/s)"]
 
+# Number of calendar covariates emitted by ``calendar_features`` (hour sin/cos,
+# day-of-year sin/cos). In the multivariate feature frame the covariate columns
+# are ordered [calendar (these), exogenous weather], so the calendar block always
+# occupies the first ``N_CALENDAR_FEATURES`` covariate channels. These are
+# genuinely known over the forecast horizon; the weather channels are not.
+N_CALENDAR_FEATURES = 4
+
 
 def calendar_features(index: pd.DatetimeIndex) -> pd.DataFrame:
     """Daily + yearly cyclical encodings for a datetime index."""

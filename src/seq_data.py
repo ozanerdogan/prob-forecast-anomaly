@@ -47,6 +47,31 @@ def make_ar_windows(
     return y_seq, cov_seq
 
 
+def freeze_future_covariates(
+    cov_seq: np.ndarray,
+    lookback: int,
+    n_known_future: int,
+) -> np.ndarray:
+    """Hold the future-*unknown* covariate channels at their origin value.
+
+    For a realistic ("past covariate") forecast the model must not see the true
+    future values of channels that are unknown at prediction time (the exogenous
+    weather). Over the horizon region (positions ``lookback`` onward) those
+    channels are frozen to their last observed value (position ``lookback - 1``),
+    i.e. a persistence extrapolation. The first ``n_known_future`` channels
+    (calendar features) are genuinely known and left at their true future values.
+
+    cov_seq: (N, L+H, C). Returns a modified copy; the input is not touched.
+    Channels with index >= ``n_known_future`` are frozen; if there are none
+    (``C <= n_known_future``) the array is returned unchanged.
+    """
+    out = cov_seq.copy()
+    if out.shape[-1] > n_known_future:
+        origin = out[:, lookback - 1 : lookback, n_known_future:]  # (N, 1, C_unknown)
+        out[:, lookback:, n_known_future:] = origin
+    return out
+
+
 def make_encoder_windows(
     features: np.ndarray,
     lookback: int,

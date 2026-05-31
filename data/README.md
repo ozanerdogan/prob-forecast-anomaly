@@ -57,5 +57,9 @@ Splits are produced deterministically by `src/preprocessing.py`.
 | `max. wv (m/s)` | Max wind speed | m/s |
 | `wd (deg)` | Wind direction | deg |
 
-**Forecasting target:** `T (degC)` (single-target univariate setting in Phase 1; multivariate
-exogenous variants will be added in later phases).
+**Forecasting target:** `T (degC)`. The default setting is single-target (univariate).
+Multivariate variants additionally feed *contemporaneous* exogenous weather channels
+(`p (mbar)`, `rh (%)`, `VPmax (mbar)`, `wv (m/s)`) plus calendar features alongside the target;
+these are exercised in the ablation study (`src/ablation.py`) and documented as a
+*perfect-covariate upper bound* — not an operational forecast — per the covariate-assumption
+note in the top-level `README.md`.

@@ -139,6 +139,8 @@ Heavy scripts accept `--smoke` for a fast 1-epoch sanity pass.
 
 **Jena Climate 2009–2016** — recorded by the Max Planck Institute for Biogeochemistry, Jena,
 Germany. 14 weather variables sampled every 10 minutes (we resample to hourly). Forecasting target
-in this study: temperature `T (degC)`. Other variables are kept for planned exogenous-feature variants in later phases.
+in this study: temperature `T (degC)`. The remaining variables are used as contemporaneous
+exogenous covariates in the multivariate ablation variants (a documented perfect-covariate upper
+bound; see the covariate-assumption note above).
 
 See `data/README.md` for acquisition details.

@@ -58,8 +58,10 @@ Splits are produced deterministically by `src/preprocessing.py`.
 | `wd (deg)` | Wind direction | deg |
 
 **Forecasting target:** `T (degC)`. The default setting is single-target (univariate).
-Multivariate variants additionally feed *contemporaneous* exogenous weather channels
-(`p (mbar)`, `rh (%)`, `VPmax (mbar)`, `wv (m/s)`) plus calendar features alongside the target;
-these are exercised in the ablation study (`src/ablation.py`) and documented as a
-*perfect-covariate upper bound* — not an operational forecast — per the covariate-assumption
-note in the top-level `README.md`.
+Multivariate variants additionally feed exogenous weather channels
+(`p (mbar)`, `rh (%)`, `VPmax (mbar)`, `wv (m/s)`) plus calendar features alongside the target,
+exercised in the ablation study (`src/ablation.py`). Because DeepAR is autoregressive, feeding
+*contemporaneous* future weather leaks the target — that variant (`deepar_multivariate`) is an
+**oracle upper bound**, while **`deepar_past_covariate`** freezes horizon weather at the origin
+(persistence) for a leakage-free setting. See the covariate-handling note in the top-level
+`README.md`.

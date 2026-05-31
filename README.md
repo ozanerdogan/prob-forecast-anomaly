@@ -31,18 +31,29 @@ compare three families:
   Transformer** (encoder with per-quantile heads trained by pinball loss).
 - **Robustness study** — every model is re-scored under injected anomalies
   (point spike, contextual outlier, level shift, and an L-inf FGSM perturbation),
-  with intensity scaled by the local rolling std. We add **post-hoc
+  with intensity scaled by the local rolling std. The deterministic family has two
+  members (the LSTM and the untrained naive-seasonal); all models see the *same*
+  injected context for the non-gradient anomalies, while FGSM is white-box per
+  model, so naive-seasonal (no gradient) is reported N/A there. We add **post-hoc
   spread-temperature calibration** fit on validation and report PICP before/after.
 
-The study is rounded out by a mandatory **ablation** (input richness, lookback,
-likelihood, quantile-set size), an **error analysis** (per-horizon, by season and
-temperature range, worst windows under anomaly, and overconfident-failure
-analysis), and a **visualization** suite.
+The study is rounded out by a mandatory **ablation** (input richness —
+target-only, leakage-free past-covariate, and the future-leaking oracle upper
+bound — plus lookback, likelihood, quantile-set size), an **error analysis**
+(per-horizon, by season and temperature range, worst windows under anomaly, and
+overconfident-failure analysis), and a **visualization** suite.
 
-> **Covariate assumption.** Multivariate variants feed *contemporaneous* exogenous
-> weather channels alongside the target, i.e. a perfect-covariate setting. This
-> inflates multivariate scores and is documented as an upper bound, not an
-> operational forecast.
+> **Covariate handling (leakage matters).** DeepAR is autoregressive, so feeding
+> the *contemporaneous* exogenous weather over the horizon leaks the answer — its
+> `deepar_multivariate` ablation variant is therefore an **oracle / perfect-covariate
+> upper bound** (CRPS ≈ 0.09, RMSE ≈ 0.21°C — physically impossible, i.e. leakage),
+> not an operational forecast. The realistic **`deepar_past_covariate`** variant
+> freezes horizon weather at the last observed value (persistence) and keeps only
+> the calendar features as true future; once the leakage is removed the exogenous
+> covariates no longer help DeepAR at the shared budget (and calibration degrades),
+> which shows the apparent multivariate gain was leakage. The quantile-Transformer
+> encoder never reads horizon covariates, so its `qtransformer_multivariate` is
+> already a leakage-free past-covariate setting.
 
 ## Repository Structure
 
@@ -179,8 +190,9 @@ The single randomised fixture uses a fixed seed, so the suite is deterministic.
 
 **Jena Climate 2009–2016** — recorded by the Max Planck Institute for Biogeochemistry, Jena,
 Germany. 14 weather variables sampled every 10 minutes (we resample to hourly). Forecasting target
-in this study: temperature `T (degC)`. The remaining variables are used as contemporaneous
-exogenous covariates in the multivariate ablation variants (a documented perfect-covariate upper
-bound; see the covariate-assumption note above).
+in this study: temperature `T (degC)`. The remaining variables are used as exogenous covariates in
+the multivariate ablation variants — as a future-leaking *oracle* upper bound (DeepAR) and, without
+leakage, as *past covariates* with horizon weather frozen at the origin (see the covariate-handling
+note above).
 
 See `data/README.md` for acquisition details.

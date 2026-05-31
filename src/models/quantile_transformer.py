@@ -100,10 +100,16 @@ class QuantileTransformer(nn.Module):
         return out.view(-1, self.cfg.horizon, self.cfg.n_quantiles)
 
     def attention_first_layer(self, x: torch.Tensor) -> torch.Tensor:
-        """Return the first layer's (B, L, L) attention map for a batch."""
+        """Return the first layer's (B, L, L) attention map for a batch.
+
+        Restores the prior train/eval mode so this read-out has no side effect.
+        """
+        was_training = self.training
         self.eval()
         with torch.no_grad():
             self.forward(x)
+        if was_training:
+            self.train()
         return self.layers[0].last_attn
 
 

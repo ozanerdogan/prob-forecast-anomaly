@@ -35,6 +35,7 @@ from src.models.deepar import (  # noqa: E402
     sample_forecast,
     train_deepar,
 )
+from src.models.quantile_transformer import QUANTILES_7  # noqa: E402
 from src.preprocessing import (  # noqa: E402
     Standardizer,
     TARGET,
@@ -42,7 +43,9 @@ from src.preprocessing import (  # noqa: E402
 )
 from src.seq_data import make_ar_windows  # noqa: E402
 
-QUANTILES = np.array([0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95])
+# Shared 7-level quantile grid (same as the quantile Transformer, for fair
+# DeepAR-vs-QT scoring).
+QUANTILES = np.array(QUANTILES_7)
 ALPHA = 0.1  # central 90% interval from the 0.05 / 0.95 quantiles
 
 

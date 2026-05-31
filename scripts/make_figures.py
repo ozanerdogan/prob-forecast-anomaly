@@ -109,15 +109,17 @@ def fig_naive_sample_window() -> None:
     window_hours = 24 * 7
     horizon = 24
 
-    history = test.iloc[: start + window_hours].to_numpy()
+    # Full test series up to the forecast origin (the naive template is its
+    # trailing season); only the last `window_hours` are drawn.
+    series_to_origin = test.iloc[: start + window_hours].to_numpy()
     truth = test.iloc[start + window_hours : start + window_hours + horizon].to_numpy()
-    pred = naive_seasonal_forecast(history, horizon, season_length=24)
+    pred = naive_seasonal_forecast(series_to_origin, horizon, season_length=24)
 
     idx_hist = test.index[start : start + window_hours]
     idx_fc = test.index[start + window_hours : start + window_hours + horizon]
 
     fig, ax = plt.subplots(figsize=(7.0, 2.5))
-    ax.plot(idx_hist, history[start:], lw=0.9, color="#34495e", label="history")
+    ax.plot(idx_hist, series_to_origin[start:], lw=0.9, color="#34495e", label="history")
     ax.plot(idx_fc, truth, lw=1.3, color="#1f4e79", label="ground truth")
     ax.plot(idx_fc, pred, lw=1.3, color="#c0392b", ls="--", label="naive seasonal (S=24)")
     ax.axvline(idx_fc[0], color="grey", lw=0.6, ls=":")

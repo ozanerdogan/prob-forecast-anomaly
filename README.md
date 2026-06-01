@@ -15,7 +15,9 @@ Time-series forecasting models are typically evaluated under clean test conditio
 real-world series are contaminated with point spikes, level shifts, contextual outliers, and
 adversarial perturbations. We compare **deterministic** and **probabilistic** forecasting approaches
 under controlled anomaly injection scenarios to study which approach degrades more gracefully and
-which uncertainty signals are useful for downstream anomaly-aware decision making.
+whether the probabilistic models' uncertainty stays **trustworthy** (well-calibrated and not
+overconfident) when the input context is contaminated — a prerequisite for anomaly-aware decision
+making, which we leave to future work.
 
 
 ## Approach
@@ -92,10 +94,9 @@ overconfident-failure analysis), and a **visualization** suite.
 │   ├── run_ablation.py      # Ablation study
 │   ├── run_error_analysis.py
 │   └── make_figures.py      # --phase {1,2,all}
-├── tests/                   # pytest unit tests (metrics)
+├── tests/                   # pytest unit tests (metrics, models, anomaly, calibration)
 ├── results/                 # Metrics JSON, ablation/, figures/
-├── report/                  # Progress report
-└── notebooks/               # Exploratory analysis
+└── report/                  # Progress report
 ```
 
 ## Reproduction
@@ -175,9 +176,11 @@ the anomaly/error-analysis scripts edit the `SEED` constant at the top of the fi
   pipeline and the current result JSONs; re-run `python scripts/make_figures.py
   --phase all` to regenerate them after any results change.
 
-**Tests.** All unit tests live in `tests/test_metrics.py` and are fully
-self-contained: pure-NumPy/SciPy checks of the metric functions with no dataset
-download, model training, or GPU. They run independently in a couple of seconds:
+**Tests.** Unit tests live in `tests/` and cover the metrics, sequence-window
+builders, anomaly injectors, post-hoc calibration, and the DeepAR/Transformer
+inference paths (including a regression guard on the DeepAR conditioning
+alignment). They are self-contained -- tiny random-init models on CPU, no dataset
+download, no training, no GPU -- and run in a few seconds:
 
 ```bash
 pytest                      # or: pytest tests/test_metrics.py -q

@@ -1,13 +1,14 @@
-"""Run the SARIMA control model on Jena Climate.
+"""Run the SARIMA control model on the full Jena Climate test split.
 
 SARIMA is a *control* for the plain ARIMA baseline (see
 ``src/baselines/sarima_baseline.py``): same non-seasonal order (2,1,2) plus a
 daily seasonal order (1,0,1,24). Comparing this JSON against ``arima.json``
-isolates the contribution of the seasonal component.
+probes the seasonal contribution -- but see the control caveat in
+``sarima_baseline.py``: SARIMA fits a shorter window (2000h) than ARIMA (8000h),
+so it is not a perfectly clean single-variable isolation.
 
-Seasonal s=24 fits are slow, so we evaluate the same 30-day test subset as the
-ARIMA runner but fit on a shorter recent window. Reports include sMAPE/MASE in
-addition to the Phase-1 RMSE/MAE/MAPE so the control is directly comparable.
+Rolling-origin over the full 2016 test year; the seasonal s=24 fits make this the
+slowest baseline (~45 min). Reports sMAPE/MASE alongside RMSE/MAE/MAPE.
 """
 from __future__ import annotations
 
@@ -26,7 +27,6 @@ from src.preprocessing import TARGET, chronological_split  # noqa: E402
 ORDER = (2, 1, 2)
 SEASONAL_ORDER = (1, 0, 1, 24)
 HORIZON = 24
-TEST_SUBSET_HOURS = 24 * 30  # first 30 days of test (matches run_arima.py)
 
 
 def main() -> None:
@@ -34,7 +34,7 @@ def main() -> None:
     splits = chronological_split(df)
 
     train = splits.y_train()
-    test = splits.y_test()[:TEST_SUBSET_HOURS]
+    test = splits.y_test()
 
     config = SarimaConfig(
         order=ORDER,
@@ -45,7 +45,7 @@ def main() -> None:
     )
     print(
         f"Running SARIMA{ORDER}x{SEASONAL_ORDER} on train (n={len(train)}) "
-        f"-> test_subset (n={len(test)})"
+        f"-> full test (n={len(test)})"
     )
     y_true, y_pred = rolling_sarima_predictions(train, test, config)
     metrics = report(y_true, y_pred)
@@ -59,7 +59,7 @@ def main() -> None:
         horizon=HORIZON,
         refit_every=config.refit_every,
         window=config.window,
-        test_subset_hours=TEST_SUBSET_HOURS,
+        n_test_hours=int(len(test)),
         n_predictions=int(len(y_true)),
         role="seasonal-component control for ARIMA(2,1,2)",
     )

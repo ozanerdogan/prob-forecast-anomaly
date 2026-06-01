@@ -1,9 +1,9 @@
 {
-  "rmse": 5.013654072164292,
-  "mae": 4.00466042944234,
-  "mape": 292.46919442141717,
-  "smape": 118.87130674306879,
-  "mase": 1.5418472727890016,
+  "rmse": 3.835591557266583,
+  "mae": 2.961317453013635,
+  "mape": 132.959942652473,
+  "smape": 52.33338197930889,
+  "mase": 1.1401464167156263,
   "model": "sarima",
   "order": [
     2,
@@ -20,7 +20,7 @@
   "horizon": 24,
   "refit_every": 50,
   "window": 2000,
-  "test_subset_hours": 720,
-  "n_predictions": 16728,
+  "n_test_hours": 8784,
+  "n_predictions": 210264,
   "role": "seasonal-component control for ARIMA(2,1,2)"
 }

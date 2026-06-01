@@ -1,9 +1,8 @@
-"""Run the ARIMA baseline on Jena Climate.
+"""Run the ARIMA baseline on the full Jena Climate test split.
 
-To keep runtime manageable we evaluate on a *subset* of the test split: the
-first 30 days (a contiguous prefix, ~700 rolling origins), the same subset the
-SARIMA control uses (run_sarima.py) so the two are directly comparable.
-Full-test ARIMA is deferred to the final phase.
+Rolling-origin over the entire 2016 test year (every hourly origin; refit every
+``refit_every`` origins on a recent window -- see arima_baseline.py), so ARIMA is
+evaluated on the same full-year period as the other baselines. Runtime ~15-20 min.
 """
 from __future__ import annotations
 
@@ -23,7 +22,6 @@ from src.preprocessing import TARGET, chronological_split  # noqa: E402
 
 ORDER = (2, 1, 2)
 HORIZON = 24
-TEST_SUBSET_HOURS = 24 * 30  # first 30 days of test
 
 
 def main() -> None:
@@ -31,10 +29,10 @@ def main() -> None:
     splits = chronological_split(df)
 
     train = splits.y_train()
-    test = splits.y_test()[:TEST_SUBSET_HOURS]
+    test = splits.y_test()
 
     config = ArimaConfig(order=ORDER, horizon=HORIZON, refit_every=50)
-    print(f"Running ARIMA{ORDER} on train (n={len(train)}) -> test_subset (n={len(test)})")
+    print(f"Running ARIMA{ORDER} on train (n={len(train)}) -> full test (n={len(test)})")
     y_true, y_pred = rolling_arima_predictions(train, test, config)
     metrics = report(y_true, y_pred)
     metrics["smape"] = smape(y_true, y_pred)
@@ -45,7 +43,7 @@ def main() -> None:
         target=TARGET,
         horizon=HORIZON,
         refit_every=config.refit_every,
-        test_subset_hours=TEST_SUBSET_HOURS,
+        n_test_hours=int(len(test)),
         n_predictions=int(len(y_true)),
     )
     out_dir = ROOT / "results"

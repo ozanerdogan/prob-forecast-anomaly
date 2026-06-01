@@ -9,8 +9,8 @@ lacks an explicit seasonal component. SARIMA keeps the same non-seasonal order
 We reuse the ARIMA batch rolling-origin scheme (refit every ``refit_every``
 origins, cached fit in between). Because a seasonal s=24 SARIMAX fit is roughly
 an order of magnitude slower than ARIMA, we fit on a shorter recent window
-(default 2000 hours, vs ARIMA's 8000) and the runner evaluates a small test
-subset. The seasonal period is fixed to 24 (daily cycle on hourly data).
+(default 2000 hours, vs ARIMA's 8000); even so, on the full test year this is the
+slowest baseline (~45 min). The seasonal period is fixed to 24 (daily cycle).
 
 CAVEAT (not a perfectly clean control): SARIMA therefore differs from ARIMA in
 *two* ways -- the seasonal order AND the fit-window length (2000 vs 8000h) -- so

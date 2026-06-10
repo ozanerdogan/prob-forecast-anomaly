@@ -25,6 +25,8 @@ env/
 *.joblib
 results/runs/
 results/checkpoints/
+results/predictions/
+results/predictions_smoke/
 
 # IDE / OS
 .vscode/

@@ -114,6 +114,27 @@ ana sentez:** LS4×'te robust-tek 0.69, ACI-tek 0.75, **robust+ACI birlikte
 0.87** — tamamlayıcılar. Projenin pratik reçetesi: *modeli anomaliyle eğit +
 üstüne online adaptif kalibrasyon.*
 
+## Faz 4+ — derinleştirme (girdi analizi + genelleme + ek ablation)
+
+**Ne yaptık.** Recenzör/hoca sorularını kapatan ek deneyler.
+
+**Sonuçlar ✓.**
+- **Robust eğitim GENEL reçete:** üç mimaride de işe yarıyor (LS4× ham PICP
+  qLSTM 0.24→0.69, QT 0.30→0.72, DeepAR 0.27→0.46); robust+ACI iki mimaride
+  birleşik en iyi (qLSTM 0.87, QT 0.89).
+- **Girdinin değeri + LEAKAGE düzeltmesi:** T-türevleri (VPmax, Tpot...)
+  sıcaklığı analitik veriyor (VPmax→T RMSE 0.05°C) → "exogenous-only iyi"
+  bir sızıntı artefaktıymış; gerçek bağımsız sensörlerle (basınç/nem/rüzgâr)
+  RMSE 3.68, naive'in (3.21) altında → **direkt sıcaklık vazgeçilmez**.
+  Bağımsız önem: T ≫ mevsim ≫ rüzgâr > basınç > nem.
+- **Horizon ablation:** RMSE 12h 1.86 / 24h 2.43 / 48h 3.15 — 24h seçimi
+  gerekçeli. **Ekstrem quantile:** %90/95/98 aralık hepsi kalibre (PICP
+  0.90/0.95/0.98), crossing yok.
+- **Dürüst negatifler (rapora):** **10 dk çözünürlük kazandırmadı**
+  (RMSE 2.40 vs 2.38, seed gürültüsü içinde); HPO bulgusuyla tutarlı —
+  problem HP/veri-miktarına yapısal duyarsız; DeepAR oracle leakage
+  rosterdan çıkarıldı.
+
 ---
 
 ## Genel sentez — projenin söylediği
@@ -137,7 +158,7 @@ ana sentez:** LS4×'te robust-tek 0.69, ACI-tek 0.75, **robust+ACI birlikte
 - Offline/online etiketi açık; ACI'nin τ-uzayı kullanımı not edildi.
 
 ## Gelecek iş (yapılmadı, gerekçeli)
-- Robust+ACI'yi tüm kadroya yaymak; QRF/linear için v2 tam süpürme.
+- Robust+ACI'yi tüm kadroya yaymak (3 mimaride doğrulandı; kalan modeller marjinal); QRF/linear için v2 tam süpürme.
 - N-BEATS/TFT (DLinear sonucu getiriyi düşük gösterdi), DeepAR 2h varyantı,
   10dk çözünürlük (görev tanımını değiştirir) — en spekülatif, atlandı.
 - Literatür taraması künyelerinin DOI doğrulaması (adaylar

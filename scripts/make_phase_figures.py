@@ -369,15 +369,16 @@ def fig_p3_ensemble_intervals() -> None:
     if not p.exists():
         return
     ei = json.loads(p.read_text())
-    rows = [(k, v["crps"], v["picp"], v["mis"]) for k, v in ei["candidates"].items()]
+    rows = [(k, v["pinball"], v["picp"], v["mis"]) for k, v in ei["candidates"].items()]
     rows.sort(key=lambda r: r[1])
-    fig, ax = plt.subplots(figsize=(5.8, 2.8))
+    fig, ax = plt.subplots(figsize=(6.0, 3.0))
     names = [r[0] for r in rows]
-    ax.barh(names, [r[1] for r in rows], color="#1f4e79")
+    colors = ["#c0392b" if "ensemble" in n else "#1f4e79" for n in names]
+    ax.barh(names, [r[1] for r in rows], color=colors)
     for i, r in enumerate(rows):
-        ax.text(r[1] + 0.005, i, f"PICP {r[2]:.3f}", va="center", fontsize=7)
-    ax.set_xlabel("CRPS (temiz test)")
-    ax.set_title("Faz 3 — Aralık birleştirme: üyeler vs ensemble")
+        ax.text(r[1] + 0.002, i, f"PICP {r[2]:.3f}", va="center", fontsize=7)
+    ax.set_xlabel("pinball ≈ CRPS/2 (temiz test) — kırmızı = ensemble")
+    ax.set_title("Faz 3 — Aralık birleştirme: ensemble en güçlü üyeyi geçemiyor")
     ax.grid(axis="x", alpha=0.25)
     _save(fig, 3, "ensemble_intervals.png")
 

@@ -1,0 +1,211 @@
+{
+  "selection": "final-epoch validation loss (test untouched until the winner)",
+  "smoke": false,
+  "models": {
+    "lstm": {
+      "trials": [
+        {
+          "params": {
+            "hidden_size": 64,
+            "num_layers": 1,
+            "lr": 0.001
+          },
+          "val_loss": 0.11143183271145687
+        },
+        {
+          "params": {
+            "hidden_size": 64,
+            "num_layers": 1,
+            "lr": 0.0003
+          },
+          "val_loss": 0.11866691454662291
+        },
+        {
+          "params": {
+            "hidden_size": 64,
+            "num_layers": 2,
+            "lr": 0.001
+          },
+          "val_loss": 0.11020645952924003
+        },
+        {
+          "params": {
+            "hidden_size": 64,
+            "num_layers": 2,
+            "lr": 0.0003
+          },
+          "val_loss": 0.11835129459144017
+        },
+        {
+          "params": {
+            "hidden_size": 128,
+            "num_layers": 1,
+            "lr": 0.001
+          },
+          "val_loss": 0.10992456323274687
+        },
+        {
+          "params": {
+            "hidden_size": 128,
+            "num_layers": 1,
+            "lr": 0.0003
+          },
+          "val_loss": 0.11367418691932156
+        },
+        {
+          "params": {
+            "hidden_size": 128,
+            "num_layers": 2,
+            "lr": 0.001
+          },
+          "val_loss": 0.10678972541120466
+        },
+        {
+          "params": {
+            "hidden_size": 128,
+            "num_layers": 2,
+            "lr": 0.0003
+          },
+          "val_loss": 0.11295690445760109
+        }
+      ],
+      "best_params": {
+        "hidden_size": 128,
+        "num_layers": 2,
+        "lr": 0.001
+      },
+      "best_val_loss": 0.10678972541120466,
+      "test_rmse_default": 2.4294278918944117,
+      "test_rmse_best": 2.3798590706524863,
+      "test_crps_default": null,
+      "test_crps_best": null,
+      "test_picp_best": null
+    },
+    "qlstm": {
+      "trials": [
+        {
+          "params": {
+            "hidden_size": 64,
+            "num_layers": 1,
+            "lr": 0.001
+          },
+          "val_loss": 0.07435915257011712
+        },
+        {
+          "params": {
+            "hidden_size": 64,
+            "num_layers": 1,
+            "lr": 0.0003
+          },
+          "val_loss": 0.07609963379592202
+        },
+        {
+          "params": {
+            "hidden_size": 64,
+            "num_layers": 2,
+            "lr": 0.001
+          },
+          "val_loss": 0.06898711449024397
+        },
+        {
+          "params": {
+            "hidden_size": 64,
+            "num_layers": 2,
+            "lr": 0.0003
+          },
+          "val_loss": 0.07489962971576765
+        },
+        {
+          "params": {
+            "hidden_size": 128,
+            "num_layers": 1,
+            "lr": 0.001
+          },
+          "val_loss": 0.06938997932902262
+        },
+        {
+          "params": {
+            "hidden_size": 128,
+            "num_layers": 1,
+            "lr": 0.0003
+          },
+          "val_loss": 0.07302092461113158
+        },
+        {
+          "params": {
+            "hidden_size": 128,
+            "num_layers": 2,
+            "lr": 0.001
+          },
+          "val_loss": 0.06849676707769906
+        },
+        {
+          "params": {
+            "hidden_size": 128,
+            "num_layers": 2,
+            "lr": 0.0003
+          },
+          "val_loss": 0.07146085157740716
+        }
+      ],
+      "best_params": {
+        "hidden_size": 128,
+        "num_layers": 2,
+        "lr": 0.001
+      },
+      "best_val_loss": 0.06849676707769906,
+      "test_rmse_default": 2.3842137642141363,
+      "test_rmse_best": 2.385764146742035,
+      "test_crps_default": 1.015455513978363,
+      "test_crps_best": 1.0053729514217513,
+      "test_picp_best": 0.9160863509749304
+    },
+    "qt": {
+      "trials": [
+        {
+          "params": {
+            "d_model": 64,
+            "num_layers": 2,
+            "dim_ff": 128
+          },
+          "val_loss": 0.07012853232425684
+        },
+        {
+          "params": {
+            "d_model": 64,
+            "num_layers": 3,
+            "dim_ff": 128
+          },
+          "val_loss": 0.07244890620255603
+        },
+        {
+          "params": {
+            "d_model": 128,
+            "num_layers": 2,
+            "dim_ff": 256
+          },
+          "val_loss": 0.07123267638117241
+        },
+        {
+          "params": {
+            "d_model": 128,
+            "num_layers": 3,
+            "dim_ff": 256
+          },
+          "val_loss": 0.07395922971171373
+        }
+      ],
+      "best_params": {
+        "d_model": 64,
+        "num_layers": 2,
+        "dim_ff": 128
+      },
+      "best_val_loss": 0.07012853232425684,
+      "test_rmse_default": 2.4304359384593623,
+      "test_rmse_best": 2.4304359384593623,
+      "test_crps_default": 1.0220161001030914,
+      "test_crps_best": 1.0220161001030914,
+      "test_picp_best": 0.9048282265552461
+    }
+  }
+}

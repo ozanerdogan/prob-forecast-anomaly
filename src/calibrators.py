@@ -240,6 +240,66 @@ class ACITau:
         return {"gamma": self.gamma_, "tau0": self.tau0_}
 
 
+class ACIMargin:
+    """Online additive conformal margin — the adaptive-CQR bridge.
+
+    CQR widens the outer interval by a fixed margin fit offline; under shift
+    that margin is stale. This is its online counterpart (Gibbs-Candes update
+    on the margin instead of the spread scale): the outer pair is widened by
+    m_t, and m_t is grown/shrunk by the realised miscoverage of windows < t.
+    Same legitimacy argument as ACITau — window t never sees its own outcome.
+    """
+
+    name = "aci_margin"
+    fit_on = "val_clean"
+
+    def __init__(self, alpha: float, gammas=(0.05, 0.1, 0.2, 0.5, 1.0)):
+        self.alpha = alpha
+        self.gammas = tuple(gammas)
+        self.gamma_: float | None = None
+        self.m0_: float = 0.0
+
+    def _replay(self, y, q, levels, gamma, m0):
+        levels = np.asarray(levels)
+        lo, hi = _outer_indices(levels, self.alpha)
+        n = len(q)
+        out = np.asarray(q, dtype=float).copy()
+        margins = np.empty(n)
+        m = float(m0)
+        for t in range(n):
+            margins[t] = m
+            out[t, ..., lo] = q[t][..., lo] - m
+            out[t, ..., hi] = q[t][..., hi] + m
+            inside = (y[t] >= out[t][..., lo]) & (y[t] <= out[t][..., hi])
+            miss = 1.0 - float(np.mean(inside))
+            m = max(0.0, m + gamma * (miss - self.alpha))
+        return out, margins
+
+    def fit(self, y_val, q_val, levels, context_val=None) -> "ACIMargin":
+        y = np.asarray(y_val, dtype=float)
+        q = np.asarray(q_val, dtype=float)
+        # seed m0 with the offline split-conformal margin (warm start)
+        cqr = CQRCalibrator(self.alpha).fit(y_val, q_val, levels)
+        best = None
+        for g in self.gammas:
+            qc, ms = self._replay(y, q, levels, g, cqr.margin_)
+            mtr = interval_metrics(y, qc, levels, self.alpha)
+            key = (abs(mtr["picp"] - (1 - self.alpha)), mtr["mis"])
+            if best is None or key < best[0]:
+                best = (key, g, float(ms[-1]))
+        _, self.gamma_, self.m0_ = best
+        return self
+
+    def apply(self, y_true, q, levels, context=None) -> np.ndarray:
+        out, ms = self._replay(np.asarray(y_true, dtype=float),
+                               np.asarray(q, dtype=float), levels, self.gamma_, self.m0_)
+        self.last_margin_path_ = ms
+        return out
+
+    def params(self) -> dict:
+        return {"gamma": self.gamma_, "m0": self.m0_}
+
+
 class InputTau:
     """Offline input-conditional spread scale from context features.
 

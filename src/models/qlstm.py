@@ -66,7 +66,16 @@ def train_qlstm(
     x_train: np.ndarray, y_train: np.ndarray,
     x_val: np.ndarray, y_val: np.ndarray,
     cfg: QLstmConfig, device: str = "cpu",
+    augment_fn=None, sample_weights: np.ndarray | None = None,
 ) -> tuple[QuantileLstm, list[dict]]:
+    """Train the quantile LSTM.
+
+    ``augment_fn`` (phase-3 robust training): called per CPU batch as
+    ``augment_fn(xb) -> xb`` BEFORE the device transfer — e.g. on-the-fly
+    anomaly injection. ``sample_weights`` (phase-3 tail oversampling): per-
+    window weights for a replacement sampler. Both default to None, in which
+    case this code path is bit-identical to the phase-2 baseline.
+    """
     torch.manual_seed(cfg.seed)
     np.random.seed(cfg.seed)
 
@@ -74,10 +83,18 @@ def train_qlstm(
     opt = torch.optim.Adam(model.parameters(), lr=cfg.lr)
     q = torch.tensor(cfg.quantiles, device=device, dtype=torch.float32)
 
-    train_loader = DataLoader(
-        TensorDataset(torch.from_numpy(x_train), torch.from_numpy(y_train)),
-        batch_size=cfg.batch_size, shuffle=True, drop_last=True,
-    )
+    train_ds = TensorDataset(torch.from_numpy(x_train), torch.from_numpy(y_train))
+    if sample_weights is not None:
+        sampler = torch.utils.data.WeightedRandomSampler(
+            torch.as_tensor(sample_weights, dtype=torch.double),
+            num_samples=len(train_ds), replacement=True,
+            generator=torch.Generator().manual_seed(cfg.seed),
+        )
+        train_loader = DataLoader(train_ds, batch_size=cfg.batch_size,
+                                  sampler=sampler, drop_last=True)
+    else:
+        train_loader = DataLoader(train_ds, batch_size=cfg.batch_size,
+                                  shuffle=True, drop_last=True)
     val_loader = DataLoader(
         TensorDataset(torch.from_numpy(x_val), torch.from_numpy(y_val)),
         batch_size=cfg.batch_size,
@@ -88,6 +105,8 @@ def train_qlstm(
         model.train()
         tr_loss, tr_n = 0.0, 0
         for xb, yb in train_loader:
+            if augment_fn is not None:
+                xb = augment_fn(xb)
             xb, yb = xb.to(device), yb.to(device)
             opt.zero_grad()
             loss = pinball_loss_torch(model(xb), yb, q)

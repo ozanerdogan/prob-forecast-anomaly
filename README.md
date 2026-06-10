@@ -164,6 +164,21 @@ python scripts/calibrate_detect_clean.py
 python scripts/run_significance.py
 python scripts/run_natural_extremes.py
 
+# 5e. Stage-2 adaptive-CQR (online conformal margin)
+python scripts/calibrate_aci_margin.py
+
+# 5f. Phase-3 optimization study (normal vs optimized, side by side)
+python scripts/run_hpo.py                 # HPO, selection on validation
+python scripts/run_multiseed.py           # 4 models x 3 seeds (mean +/- std)
+python scripts/run_cv.py                  # forward-chaining year CV
+python scripts/run_robust_training.py     # anomaly-augmented training
+python scripts/run_tail_oversampling.py   # tail reweighting + calibration recheck
+python scripts/run_ensemble_intervals.py  # quantile-averaging ensemble
+python scripts/run_composite_anomaly.py   # overlapping faults
+
+# Phase reports + figures (figures read the result JSONs, no model runs)
+python scripts/make_phase_figures.py --phase all
+
 # 6. Figures (Phase 1 PDFs + Phase 2 PNGs)
 python scripts/make_figures.py --phase all
 

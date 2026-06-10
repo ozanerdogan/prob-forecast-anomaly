@@ -8,6 +8,7 @@ import pytest
 
 from src.calibration import fit_spread_temperature
 from src.calibrators import (
+    ACIMargin,
     ACITau,
     CQRCalibrator,
     InputTau,
@@ -125,6 +126,33 @@ def test_aci_first_window_ignores_its_own_outcome():
     out_hard = cal.apply(y_hard, q, LEVELS)
     np.testing.assert_allclose(out_easy[0], out_hard[0])  # same first window
     assert not np.allclose(out_easy[1], out_hard[1])      # feedback from t=0 on
+
+
+def test_aci_margin_adapts_and_warm_starts():
+    n, h = 120, 24
+    q = _gaussian_quantiles(np.zeros((n, h)), np.ones((n, h)))
+    y = RNG.normal(size=(n, h))
+    y[n // 2:] += 3.0
+    cal = ACIMargin(ALPHA).fit(
+        _gaussian_quantiles(np.zeros((40, h)), np.ones((40, h)))[..., 3] * 0 + RNG.normal(size=(40, h)),
+        _gaussian_quantiles(np.zeros((40, h)), np.ones((40, h))), LEVELS)
+    out = cal.apply(y, q, LEVELS)
+    before = interval_metrics(y[n // 2:], q[n // 2:], LEVELS, ALPHA)
+    after = interval_metrics(y[n // 2:], out[n // 2:], LEVELS, ALPHA)
+    assert after["picp"] > before["picp"] + 0.15
+    assert cal.m0_ >= 0.0  # warm-started from the offline CQR margin
+    # only the outer pair moves; inner quantiles are untouched
+    np.testing.assert_allclose(out[..., 1:-1], q[..., 1:-1])
+
+
+def test_aci_margin_first_window_ignores_own_outcome():
+    h = 24
+    q = _gaussian_quantiles(np.zeros((3, h)), np.ones((3, h)))
+    cal = ACIMargin(ALPHA)
+    cal.gamma_, cal.m0_ = 0.2, 0.5
+    out_easy = cal.apply(np.zeros((3, h)), q, LEVELS)
+    out_hard = cal.apply(np.full((3, h), 40.0), q, LEVELS)
+    np.testing.assert_allclose(out_easy[0], out_hard[0])
 
 
 def test_input_tau_tracks_required_scale():

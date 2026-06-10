@@ -1,0 +1,38 @@
+{
+  "seed": 42,
+  "smoke": false,
+  "settings": {
+    "clean": {
+      "lstm_rmse": 2.4294278918944117,
+      "qlstm_rmse": 2.3842137642141363,
+      "qlstm_picp": 0.9267641597028784,
+      "qlstm_crps": 1.015455513978363
+    },
+    "flatline": {
+      "lstm_rmse": 3.7707105262511593,
+      "qlstm_rmse": 3.839123932276227,
+      "qlstm_picp": 0.662372330547818,
+      "qlstm_crps": 1.9678724045714
+    },
+    "spike": {
+      "lstm_rmse": 2.4473895433859387,
+      "qlstm_rmse": 2.4097913490950527,
+      "qlstm_picp": 0.9227019498607242,
+      "qlstm_crps": 1.0266514001634006
+    },
+    "flatline+spike": {
+      "lstm_rmse": 3.7848613300682126,
+      "qlstm_rmse": 3.860812067394326,
+      "qlstm_picp": 0.6599350046425255,
+      "qlstm_crps": 1.9775805704597338
+    }
+  },
+  "compounding": {
+    "lstm_rmse_sum_alone_vs_combined": {
+      "flatline": 3.7707105262511593,
+      "spike": 2.4473895433859387,
+      "combined": 3.7848613300682126,
+      "clean": 2.4294278918944117
+    }
+  }
+}

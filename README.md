@@ -45,6 +45,25 @@ bound — plus lookback, likelihood, quantile-set size), an **error analysis**
 (per-horizon, by season and temperature range, worst windows under anomaly, and
 overconfident-failure analysis), and a **visualization** suite.
 
+> **Stage-2 uncertainty repair (two-stage design).** Stage-1 scripts dump
+> frozen forecasts (`results/predictions/`); stage-2 calibration scripts read
+> only those dumps, so before/after deltas are attributable to the repair
+> method alone. Compared regimes: **static spread temperature** (offline
+> baseline), **CQR** (offline conformal margin), **ACI-style online spread
+> adaptation** (window *t* uses only realised coverage from windows < *t* —
+> the feedback available in deployment), and an **offline input-conditional
+> spread** fit on validation windows with synthetically injected anomalies
+> (no test feedback of any kind). A hampel **detect-and-clean** input-repair
+> baseline provides the input-side contrast. Headline: under a 4-sigma level
+> shift DeepAR's 90% interval covers 27% of outcomes and static repair only
+> lifts it to 32%, while the adaptive regimes recover 0.85 (ACI) / 0.72
+> (input-conditional) at roughly half the interval score — uncertainty can be
+> made trustworthy under contamination, but not with a static correction.
+> Model comparisons are backed by Diebold-Mariano + paired-bootstrap tests
+> (`results/base/significance.json`): LSTM vs the quantile Transformer is a
+> statistical tie (p = 0.98) while the LSTM+QT ensemble's gain is significant
+> (p = 0.006).
+
 > **Covariate handling (leakage matters).** DeepAR is autoregressive, so feeding
 > the *contemporaneous* exogenous weather over the horizon leaks the answer — its
 > `deepar_multivariate` ablation variant is therefore an **oracle / perfect-covariate
@@ -121,9 +140,22 @@ python scripts/run_deepar.py
 python scripts/run_qtransformer.py
 
 # 5. Anomaly robustness, ablation, error analysis
-python scripts/run_anomaly_eval.py
+python scripts/run_anomaly_eval.py   # also dumps frozen forecasts -> results/predictions/
 python scripts/run_ablation.py
 python scripts/run_error_analysis.py
+
+# 5b. Tree-family probabilistic model (LightGBM point + quantile)
+python scripts/run_lgbm.py
+
+# 5c. Stage-2 calibration -- reads the frozen predictions, never runs a model
+python scripts/calibrate_static.py
+python scripts/calibrate_cqr.py
+python scripts/calibrate_aci.py
+python scripts/calibrate_input_tau.py
+python scripts/calibrate_detect_clean.py
+
+# 5d. Significance tests on the shared window grid (DM + paired bootstrap)
+python scripts/run_significance.py
 
 # 6. Figures (Phase 1 PDFs + Phase 2 PNGs)
 python scripts/make_figures.py --phase all
@@ -179,10 +211,13 @@ the anomaly/error-analysis scripts edit the `SEED` constant at the top of the fi
   --phase all` to regenerate them after any results change.
 
 **Tests.** Unit tests live in `tests/` and cover the metrics, sequence-window
-builders, anomaly injectors, post-hoc calibration, and the DeepAR/Transformer
-inference paths (including a regression guard on the DeepAR conditioning
-alignment). They are self-contained -- tiny random-init models on CPU, no dataset
-download, no training, no GPU -- and run in a few seconds:
+builders, anomaly injectors (including intensity-scaling linearity), post-hoc
+calibration, the stage-2 calibrators (static/CQR/ACI/input-conditional — e.g.
+ACI's first window provably ignores its own outcome), the hampel
+detect-and-clean filter, the frozen-forecast store, the significance helpers,
+and the DeepAR/Transformer inference paths (including a regression guard on
+the DeepAR conditioning alignment). They are self-contained -- tiny
+random-init models on CPU, no dataset download, no training, no GPU:
 
 ```bash
 pytest                      # or: pytest tests/test_metrics.py -q

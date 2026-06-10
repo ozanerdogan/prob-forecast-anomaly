@@ -280,6 +280,35 @@ def fig_p2_covariate_full() -> None:
     _save(fig, 2, "covariate_importance_full.png")
 
 
+def fig_p2_covariate_independent() -> None:
+    p = RES / "base" / "covariate_importance_independent.json"
+    if not p.exists():
+        return
+    d = json.loads(p.read_text())
+    rows = sorted(d["splits"]["test"]["permuted"].items(),
+                  key=lambda kv: kv[1]["delta_crps"])
+    names, vals, cs = [], [], []
+    for n, v in rows:
+        names.append(n)
+        vals.append(v["delta_crps"])
+        if v.get("is_target"):
+            cs.append("#c0392b")       # T — dominant
+        elif v["is_calendar"]:
+            cs.append("#7f8c8d")
+        else:
+            cs.append("#27ae60")       # independent sensor
+    fig, ax = plt.subplots(figsize=(6.4, 3.8))
+    ax.barh(names, vals, color=cs)
+    for i, v in enumerate(vals):
+        if v > 0.02:
+            ax.text(v + 0.05, i, f"{v:.2f}", va="center", fontsize=7)
+    ax.set_xlabel("ΔCRPS (kanal pencereler-arası karıştırılınca)")
+    ax.set_title("Faz 2+ — Bağımsız covariate önemi (LEAKAGE'SIZ)\n"
+                 "kırmızı = hedef T (baskın) · yeşil = bağımsız sensör · gri = takvim")
+    ax.grid(axis="x", alpha=0.25)
+    _save(fig, 2, "covariate_importance_independent.png")
+
+
 def fig_p2_input_value() -> None:
     p = RES / "base" / "exogenous_only.json"
     if not p.exists():
@@ -529,7 +558,7 @@ def fig_p4_leaderboard() -> None:
 PHASES = {
     1: (fig_p1_picp_vs_intensity, fig_p1_mis_ls4, fig_p1_significance),
     2: (fig_p2_roster, fig_p2_paired_families, fig_p2_raw_robustness,
-        fig_p2_permutation_importance, fig_p2_covariate_full, fig_p2_input_value, fig_p2_natural_extremes),
+        fig_p2_permutation_importance, fig_p2_covariate_full, fig_p2_covariate_independent, fig_p2_input_value, fig_p2_natural_extremes),
     3: (fig_p3_hpo, fig_p3_multiseed, fig_p3_cv, fig_p3_robust_training,
         fig_p3_ensemble_intervals),
     4: (fig_p4_fault_heatmap, fig_p4_robust_plus_cal, fig_p4_leaderboard),

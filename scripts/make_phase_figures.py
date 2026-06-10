@@ -285,9 +285,10 @@ def fig_p2_covariate_independent() -> None:
     if not p.exists():
         return
     d = json.loads(p.read_text())
-    # report version: drop uninformative channels (hour: stride-24 artefact,
-    # doy_sin: ~0, doy_cos already carries the season)
-    SKIP = {"hour_sin", "hour_cos", "doy_sin"}
+    # report version: drop only the unmeasurable hour channels (stride-24
+    # artefact, exactly 0); doy_sin stays (it pairs with doy_cos to encode
+    # day-of-year, marginal but real at +0.04)
+    SKIP = {"hour_sin", "hour_cos"}
     rows = sorted((kv for kv in d["splits"]["test"]["permuted"].items()
                    if kv[0] not in SKIP),
                   key=lambda kv: kv[1]["delta_crps"])

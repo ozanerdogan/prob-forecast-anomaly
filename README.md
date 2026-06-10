@@ -95,7 +95,7 @@ overconfident-failure analysis), and a **visualization** suite.
 │   ├── run_error_analysis.py
 │   └── make_figures.py      # --phase {1,2,all}
 ├── tests/                   # pytest unit tests (metrics, models, anomaly, calibration)
-├── results/                 # Metrics JSON, ablation/, figures/
+├── results/                 # base/ (stage-1 metrics), calibrated/, predictions/, ablation/, figures/
 └── report/                  # Progress report
 ```
 
@@ -132,17 +132,19 @@ python scripts/make_figures.py --phase all
 pytest
 ```
 
-Results are written to `results/` (per-model JSON, `results/ablation/`, and
-`results/figures/`).
+Results are written to `results/base/` (stage-1 per-model JSON), `results/ablation/`,
+`results/predictions/` (frozen forecasts, gitignored), `results/calibrated/<method>/`
+(stage-2 calibration metrics) and `results/figures/`.
 
 | Script | Output |
 | --- | --- |
-| `run_naive.py` / `run_arima.py` / `run_sarima.py` / `run_lstm.py` | `results/naive_seasonal.json`, `arima.json`, `sarima.json`, `lstm.json` |
-| `run_deepar.py` | `results/deepar.json` |
-| `run_qtransformer.py` | `results/qtransformer.json` |
-| `run_anomaly_eval.py` | `results/anomaly_eval.json` |
+| `run_naive.py` / `run_arima.py` / `run_sarima.py` / `run_lstm.py` | `results/base/naive_seasonal.json`, `arima.json`, `sarima.json`, `lstm.json` |
+| `run_deepar.py` | `results/base/deepar.json` |
+| `run_qtransformer.py` | `results/base/qtransformer.json` |
+| `run_anomaly_eval.py` | `results/base/anomaly_eval.json` (+ `results/predictions/*.npz`) |
 | `run_ablation.py` | `results/ablation.json` (+ `results/ablation/<variant>.json`) |
-| `run_error_analysis.py` | `results/error_analysis.json` |
+| `run_error_analysis.py` | `results/base/error_analysis.json` |
+| `calibrate_static.py` / `calibrate_aci.py` / `calibrate_input_tau.py` / `calibrate_cqr.py` / `calibrate_detect_clean.py` | `results/calibrated/<method>/<model>.json` |
 | `make_figures.py` | `results/figures/*.pdf` (Phase 1), `*.png` (Phase 2) |
 
 Heavy scripts accept `--smoke` for a fast 1-epoch sanity pass.

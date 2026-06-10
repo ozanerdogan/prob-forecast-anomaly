@@ -115,8 +115,8 @@ def main() -> None:
         history=history,
     )
 
-    out_dir = ROOT / "results"
-    out_dir.mkdir(exist_ok=True)
+    out_dir = ROOT / "results" / "base"
+    out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "deepar.json"
     out_path.write_text(json.dumps(metrics, indent=2))
     print(json.dumps({k: v for k, v in metrics.items() if k != "history"}, indent=2))

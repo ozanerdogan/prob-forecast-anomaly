@@ -32,8 +32,8 @@ def main() -> None:
         season_length=SEASON_LENGTH,
         n_predictions=int(len(y_true)),
     )
-    out_dir = ROOT / "results"
-    out_dir.mkdir(exist_ok=True)
+    out_dir = ROOT / "results" / "base"
+    out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "naive_seasonal.json"
     out_path.write_text(json.dumps(metrics, indent=2))
     print(json.dumps(metrics, indent=2))

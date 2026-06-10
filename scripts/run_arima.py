@@ -46,8 +46,8 @@ def main() -> None:
         n_test_hours=int(len(test)),
         n_predictions=int(len(y_true)),
     )
-    out_dir = ROOT / "results"
-    out_dir.mkdir(exist_ok=True)
+    out_dir = ROOT / "results" / "base"
+    out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "arima.json"
     out_path.write_text(json.dumps(metrics, indent=2))
     print(json.dumps(metrics, indent=2))

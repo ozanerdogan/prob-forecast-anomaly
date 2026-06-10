@@ -63,8 +63,8 @@ def main() -> None:
         n_predictions=int(len(y_true)),
         role="seasonal-component control for ARIMA(2,1,2)",
     )
-    out_dir = ROOT / "results"
-    out_dir.mkdir(exist_ok=True)
+    out_dir = ROOT / "results" / "base"
+    out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "sarima.json"
     out_path.write_text(json.dumps(metrics, indent=2))
     print(json.dumps(metrics, indent=2))

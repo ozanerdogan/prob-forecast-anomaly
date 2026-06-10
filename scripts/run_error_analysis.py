@@ -152,8 +152,8 @@ def main() -> None:
                   f"lstm={results['worst_windows_under_anomaly'][kind][f'{intensity:.1f}']['lstm']['worst_decile_mean']:.2f} "
                   f"qt={results['worst_windows_under_anomaly'][kind][f'{intensity:.1f}']['qtransformer']['worst_decile_mean']:.2f}")
 
-    out_dir = ROOT / "results"
-    out_dir.mkdir(exist_ok=True)
+    out_dir = ROOT / "results" / "base"
+    out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "error_analysis.json"
     out_path.write_text(json.dumps(results, indent=2))
     print(f"\nSaved -> {out_path}")

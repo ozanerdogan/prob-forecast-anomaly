@@ -80,7 +80,7 @@ def fig_series_split() -> None:
 
 
 def fig_lstm_loss_curves() -> None:
-    metrics = json.loads((ROOT / "results" / "lstm.json").read_text())
+    metrics = json.loads((ROOT / "results" / "base" / "lstm.json").read_text())
     history = metrics["history"]
     epochs = [h["epoch"] for h in history]
     train_loss = [h["train_loss"] for h in history]
@@ -144,7 +144,7 @@ def fig_baseline_comparison() -> None:
         ("ARIMA(2,1,2)", "arima.json"),
         ("LSTM", "lstm.json"),
     ):
-        m = json.loads((ROOT / "results" / file).read_text())
+        m = json.loads((ROOT / "results" / "base" / file).read_text())
         rows.append((name, m["rmse"], m["mae"]))
 
     labels = [r[0] for r in rows]
@@ -340,7 +340,7 @@ def fig_pit_histogram(ctx: dict) -> None:
 
 
 def fig_per_horizon_curves() -> None:
-    path = ROOT / "results" / "error_analysis.json"
+    path = ROOT / "results" / "base" / "error_analysis.json"
     if not path.exists():
         print("  skip per_horizon_curves (run scripts/run_error_analysis.py first)")
         return
@@ -367,7 +367,7 @@ def fig_per_horizon_curves() -> None:
 
 
 def fig_robustness_heatmap() -> None:
-    path = ROOT / "results" / "anomaly_eval.json"
+    path = ROOT / "results" / "base" / "anomaly_eval.json"
     if not path.exists():
         print("  skip robustness_heatmap (run scripts/run_anomaly_eval.py first)")
         return

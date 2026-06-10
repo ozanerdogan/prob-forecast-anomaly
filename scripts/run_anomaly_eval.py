@@ -221,8 +221,8 @@ def main() -> None:
                   f"deepar crps={rec['deepar']['crps']:.2f} picp={rec['deepar']['picp']:.2f} "
                   f"qt crps={rec['qtransformer']['crps']:.2f} picp={rec['qtransformer']['picp']:.2f}")
 
-    out_dir = ROOT / "results"
-    out_dir.mkdir(exist_ok=True)
+    out_dir = ROOT / "results" / "base"
+    out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "anomaly_eval.json"
     out_path.write_text(json.dumps(results, indent=2))
     print(f"\nSaved -> {out_path}")

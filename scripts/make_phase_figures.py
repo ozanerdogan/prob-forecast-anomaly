@@ -515,6 +515,36 @@ def fig_p4_fault_heatmap() -> None:
     _save(fig, 4, "fault_catalog_heatmap.png")
 
 
+def fig_p4_robust_generalize() -> None:
+    p = RES / "base" / "robust_generalize.json"
+    if not p.exists():
+        return
+    d = json.loads(p.read_text())
+    settings = d["settings"]
+    models = list(d["models"])
+    x = np.arange(len(settings))
+    w = 0.8 / (2 * len(models))
+    fig, ax = plt.subplots(figsize=(7.0, 3.2))
+    colors = {"qlstm": "#1f4e79", "qtransformer": "#e67e22", "deepar": "#c0392b"}
+    for k, m in enumerate(models):
+        base = colors.get(m, "#555")
+        normal = [d["models"][m]["normal"][s]["picp"] for s in settings]
+        robust = [d["models"][m]["robust"][s]["picp"] for s in settings]
+        off = (k - len(models) / 2) * 2 * w + w
+        ax.bar(x + off - w / 2, normal, w, color=base, alpha=0.4,
+               label=f"{m} normal" if k == 0 else None)
+        ax.bar(x + off + w / 2, robust, w, color=base,
+               label=f"{m} robust" if k == 0 else None)
+    ax.axhline(0.9, color="k", lw=0.7, ls=":")
+    ax.set_xticks(x)
+    ax.set_xticklabels([s.replace("_", "\n") for s in settings], fontsize=7)
+    ax.set_ylabel("ham PICP")
+    ax.set_title("Faz 4 — Robust eğitim 3 mimaride genel (açık=normal, koyu=robust)")
+    ax.legend(frameon=False, fontsize=7, ncol=3)
+    ax.grid(axis="y", alpha=0.25)
+    _save(fig, 4, "robust_generalize.png")
+
+
 def fig_p4_robust_plus_cal() -> None:
     p = RES / "base" / "robust_plus_cal.json"
     if not p.exists():
@@ -566,7 +596,7 @@ PHASES = {
         fig_p2_permutation_importance, fig_p2_covariate_full, fig_p2_covariate_independent, fig_p2_input_value, fig_p2_natural_extremes),
     3: (fig_p3_hpo, fig_p3_multiseed, fig_p3_cv, fig_p3_robust_training,
         fig_p3_ensemble_intervals),
-    4: (fig_p4_fault_heatmap, fig_p4_robust_plus_cal, fig_p4_leaderboard),
+    4: (fig_p4_fault_heatmap, fig_p4_robust_generalize, fig_p4_robust_plus_cal, fig_p4_leaderboard),
 }
 
 

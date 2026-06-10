@@ -57,27 +57,41 @@ def _scores(model, setting, levels, cal=None):
     return interval_metrics(d["y_true"], np.asarray(q), levels, ALPHA)
 
 
-def main():
-    for needed in ("qlstm", "qlstm_robust"):
-        if not prediction_path(PRED, needed, "test", "clean").exists():
-            raise SystemExit(f"missing dumps for {needed} (run scripts/run_qlstm_robust.py)")
+# model families with a normal + robust dump pair
+PAIRS = (("qlstm", "qlstm", "qlstm_robust"),
+         ("qtransformer", "qtransformer", "qtransformer_robust"))
 
-    levels_n, aci_n, itau_n = _fit_calibrators("qlstm")
-    levels_r, aci_r, itau_r = _fit_calibrators("qlstm_robust")
 
-    out = {"alpha": ALPHA, "settings": {}}
+def _corners(normal, robust):
+    levels_n, aci_n, itau_n = _fit_calibrators(normal)
+    levels_r, aci_r, itau_r = _fit_calibrators(robust)
+    block = {}
     for s in SETTINGS:
-        out["settings"][s] = {
-            "normal_raw": _scores("qlstm", s, levels_n),
-            "normal_aci": _scores("qlstm", s, levels_n, aci_n),
-            "robust_raw": _scores("qlstm_robust", s, levels_r),
-            "robust_aci": _scores("qlstm_robust", s, levels_r, aci_r),
-            "robust_input_tau": _scores("qlstm_robust", s, levels_r, itau_r),
+        block[s] = {
+            "normal_raw": _scores(normal, s, levels_n),
+            "normal_aci": _scores(normal, s, levels_n, aci_n),
+            "robust_raw": _scores(robust, s, levels_r),
+            "robust_aci": _scores(robust, s, levels_r, aci_r),
+            "robust_input_tau": _scores(robust, s, levels_r, itau_r),
         }
-        r = out["settings"][s]
-        print(f"  {s:18s} PICP  nraw {r['normal_raw']['picp']:.3f}  n+aci {r['normal_aci']['picp']:.3f}"
-              f"  rraw {r['robust_raw']['picp']:.3f}  r+aci {r['robust_aci']['picp']:.3f}"
-              f"  | MIS r+aci {r['robust_aci']['mis']:.1f}")
+    return block
+
+
+def main():
+    out = {"alpha": ALPHA, "families": {}}
+    for fam, normal, robust in PAIRS:
+        if not (prediction_path(PRED, normal, "test", "clean").exists()
+                and prediction_path(PRED, robust, "test", "clean").exists()):
+            print(f"  skip {fam}: missing {normal}/{robust} dumps")
+            continue
+        out["families"][fam] = _corners(normal, robust)
+        ls4 = out["families"][fam]["level_shift_4.0"]
+        print(f"  {fam:13s} LS4 PICP  nraw {ls4['normal_raw']['picp']:.3f}"
+              f"  n+aci {ls4['normal_aci']['picp']:.3f}  rraw {ls4['robust_raw']['picp']:.3f}"
+              f"  r+aci {ls4['robust_aci']['picp']:.3f}")
+    # keep the qlstm block at the top level too (backward-compatible)
+    if "qlstm" in out["families"]:
+        out["settings"] = out["families"]["qlstm"]
 
     out_path = ROOT / "results" / "base" / "robust_plus_cal.json"
     out_path.write_text(json.dumps(out, indent=2))

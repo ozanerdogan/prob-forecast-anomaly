@@ -24,6 +24,9 @@ from torch.utils.data import DataLoader, TensorDataset
 # Fixed quantile sets. The ablation switches between the 3- and 7-level sets.
 QUANTILES_7 = (0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95)
 QUANTILES_3 = (0.1, 0.5, 0.9)
+# extreme-tail set: adds the 2.5%/97.5% (and 1%/99%) levels for the 95%/98%
+# intervals -- targets edge-case (cold/hot extreme) coverage.
+QUANTILES_9 = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.975, 0.99)
 
 
 @dataclass

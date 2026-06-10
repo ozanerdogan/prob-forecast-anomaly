@@ -1,0 +1,60 @@
+{
+  "n_predictions": 8616,
+  "rmse": 2.5147385958949102,
+  "mae": 1.8821021069884283,
+  "smape": 35.420965175842156,
+  "mase": 0.7246342222738489,
+  "model": "dlinear",
+  "target": "T (degC)",
+  "lookback": 168,
+  "horizon": 24,
+  "kernel": 25,
+  "epochs": 8,
+  "seed": 42,
+  "device": "cuda",
+  "smoke": false,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.1762213213186638,
+      "val_loss": 0.12184964994478492
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.10770226934669065,
+      "val_loss": 0.11458876400187029
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.10331550777396735,
+      "val_loss": 0.11386718734183125
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.10161589940681177,
+      "val_loss": 0.112810260673475
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.10071293943945099,
+      "val_loss": 0.11179501813050755
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.10031080870505642,
+      "val_loss": 0.11168587669813433
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.09944815071774464,
+      "val_loss": 0.1118354225874613
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.09940529866691898,
+      "val_loss": 0.11269488655988065
+    }
+  ],
+  "loss": "mse",
+  "pair_note": "deterministic linear twin (no RevIN, deliberate)"
+}

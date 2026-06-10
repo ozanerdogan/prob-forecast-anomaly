@@ -1,0 +1,132 @@
+"""Multivariate quantile Transformer as a BASE model + permutation importance.
+
+Phase-2 decision implemented here: the multivariate-base promotion is
+per-model — the QT encoder is the model whose covariates demonstrably help
+without leakage (ablation: CRPS 1.039 -> 0.901 at the shared budget), so it
+gets the full-budget multivariate base run; DeepAR stays univariate (its
+leakage-free past-covariate variant hurts — see probe_deepar_covariates.py).
+
+Anomaly stance ('Asama-1'): corruption hits the TARGET channel only, with the
+same seeded streams as every other model, so rows remain directly comparable
+with the univariate grid. Covariate channels stay clean.
+
+Also computes the channel permutation-importance table (the cheap primary
+feature-importance method): each covariate channel is shuffled across windows
+(breaking its alignment, keeping its marginal), and the CRPS / median-RMSE
+deltas are recorded on validation AND test -> results/base/feature_importance.json.
+
+  python scripts/run_qtransformer_multi.py
+  python scripts/run_qtransformer_multi.py --smoke
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from src import experiment as E  # noqa: E402
+from src.data_loader import load_hourly  # noqa: E402
+from src.features import build_feature_frame  # noqa: E402
+from src.metrics import mase, report_probabilistic, smape  # noqa: E402
+from src.model_eval import evaluate_and_dump  # noqa: E402
+from src.models.quantile_transformer import QTransformerConfig, QUANTILES_7  # noqa: E402
+from src.predictions_io import load_predictions, prediction_path  # noqa: E402
+from src.preprocessing import TARGET  # noqa: E402
+from src.seq_data import make_encoder_windows  # noqa: E402
+
+QUANTILES = np.array(QUANTILES_7)
+ALPHA = 0.1
+SEED = 42
+
+
+def _scores(y_flat, q_flat):
+    out = report_probabilistic(y_flat, q_flat, QUANTILES, alpha=ALPHA)
+    return {"crps": out["crps"], "rmse_median": out["rmse"], "picp": out["picp"]}
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--smoke", action="store_true")
+    args = parser.parse_args()
+
+    data = E.prepare(use_covariates=True)
+    cols = list(build_feature_frame(load_hourly(ROOT / "data" / "processed"),
+                                    TARGET, use_covariates=True).columns)
+    cfg = QTransformerConfig(n_features=data.n_features, quantiles=QUANTILES_7)
+    if args.smoke:
+        cfg.epochs = 1
+
+    print(f"Training multivariate QT ({data.n_features} channels, {cfg.epochs} epochs) ...")
+    model = E.fit_qtransformer(data, cfg)
+
+    predict_fn = lambda x: {"quantiles": E.qtransformer_predict(model, x)}  # noqa: E731
+    grad_fn = lambda x, y: E.qtransformer_context_grad(model, x, y, QUANTILES)  # noqa: E731
+
+    metrics = evaluate_and_dump(
+        "qtransformer_multi", data, predict_fn, root=ROOT, grad_fn=grad_fn,
+        quantiles=QUANTILES, smoke=args.smoke,
+    )
+
+    pred_dir = ROOT / "results" / ("predictions_smoke" if args.smoke else "predictions")
+    d = load_predictions(prediction_path(pred_dir, "qtransformer_multi", "test", "clean"))
+    med = d["quantiles"][..., int(np.argmin(np.abs(QUANTILES - 0.5)))].reshape(-1)
+    y_flat_t = d["y_true"].reshape(-1)
+    metrics["smape"] = smape(y_flat_t, med)
+    metrics["mase"] = mase(y_flat_t, med, data.train_target_raw, season=24)
+    metrics.update(
+        model="qtransformer_multi", target=TARGET, channels=cols,
+        lookback=cfg.lookback, horizon=cfg.horizon, epochs=cfg.epochs,
+        quantiles=QUANTILES.tolist(), seed=SEED, smoke=bool(args.smoke),
+        anomaly_stance="target-channel-only corruption (Asama-1)",
+    )
+    out = ROOT / "results" / "base" / "qtransformer_multi.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(metrics, indent=2))
+    print(f"Saved -> {out}")
+
+    # ------------------------------------------------------------------ #
+    # Channel permutation importance (val + test).
+    # ------------------------------------------------------------------ #
+    print("Permutation importance ...")
+    inv = lambda a: data.scaler.inverse_target(a, TARGET)  # noqa: E731
+    L, H = cfg.lookback, cfg.horizon
+    importance: dict = {"model": "qtransformer_multi", "channels": cols[1:],
+                        "method": "channel shuffled across windows, seed 42",
+                        "splits": {}}
+    for split_name, arr in (("val", data.val), ("test", data.test)):
+        x, y = make_encoder_windows(arr, L, H, stride=H)
+        if args.smoke:
+            x, y = x[:60], y[:60]
+        y_flat = inv(y).reshape(-1)
+        base_q = inv(E.qtransformer_predict(model, x)).reshape(-1, len(QUANTILES))
+        base = _scores(y_flat, base_q)
+        rng = np.random.default_rng(SEED)
+        perm = rng.permutation(len(x))
+        rows = {}
+        for c in range(1, x.shape[2]):
+            xp = x.copy()
+            xp[:, :, c] = x[perm, :, c]
+            q = inv(E.qtransformer_predict(model, xp)).reshape(-1, len(QUANTILES))
+            s = _scores(y_flat, q)
+            rows[cols[c]] = {
+                "crps": s["crps"], "delta_crps": s["crps"] - base["crps"],
+                "rmse_median": s["rmse_median"],
+                "delta_rmse": s["rmse_median"] - base["rmse_median"],
+            }
+            print(f"  {split_name:4s} {cols[c]:14s} dCRPS {rows[cols[c]]['delta_crps']:+.4f} "
+                  f"dRMSE {rows[cols[c]]['delta_rmse']:+.4f}")
+        importance["splits"][split_name] = {"base": base, "permuted": rows}
+
+    out_fi = ROOT / "results" / "base" / "feature_importance.json"
+    out_fi.write_text(json.dumps(importance, indent=2))
+    print(f"Saved -> {out_fi}")
+
+
+if __name__ == "__main__":
+    main()

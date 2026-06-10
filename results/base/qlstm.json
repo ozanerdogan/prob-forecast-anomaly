@@ -1,0 +1,75 @@
+{
+  "n_predictions": 8616,
+  "crps": 1.015455513978363,
+  "pinball": 0.5077277569891815,
+  "picp": 0.9267641597028784,
+  "mpiw": 7.958277898432939,
+  "mis": 9.573381337852348,
+  "picp_alpha": 0.9,
+  "rmse": 2.3842137642141363,
+  "mae": 1.739470963988346,
+  "smape": 31.904647034569223,
+  "mase": 0.6697193444142169,
+  "model": "qlstm",
+  "target": "T (degC)",
+  "lookback": 168,
+  "horizon": 24,
+  "hidden_size": 64,
+  "num_layers": 2,
+  "epochs": 8,
+  "quantiles": [
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    0.9,
+    0.95
+  ],
+  "seed": 42,
+  "device": "cuda",
+  "smoke": false,
+  "history": [
+    {
+      "epoch": 1,
+      "train_pinball": 0.15112803266475014,
+      "val_pinball": 0.10308500287752578
+    },
+    {
+      "epoch": 2,
+      "train_pinball": 0.08914934040284624,
+      "val_pinball": 0.083235981868965
+    },
+    {
+      "epoch": 3,
+      "train_pinball": 0.07344194972778068,
+      "val_pinball": 0.0752939461579536
+    },
+    {
+      "epoch": 4,
+      "train_pinball": 0.07042719719602782,
+      "val_pinball": 0.07290174524877324
+    },
+    {
+      "epoch": 5,
+      "train_pinball": 0.0688637985172225,
+      "val_pinball": 0.07130373473273975
+    },
+    {
+      "epoch": 6,
+      "train_pinball": 0.06751757953315973,
+      "val_pinball": 0.07015313324648574
+    },
+    {
+      "epoch": 7,
+      "train_pinball": 0.0665406233758903,
+      "val_pinball": 0.06978811034360412
+    },
+    {
+      "epoch": 8,
+      "train_pinball": 0.06593105553046745,
+      "val_pinball": 0.06898711449024397
+    }
+  ],
+  "pair_note": "probabilistic twin of the phase-1 LSTM (same backbone/budget, pinball head)"
+}

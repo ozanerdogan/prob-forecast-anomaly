@@ -26,13 +26,15 @@ class LstmConfig:
     epochs: int = 8
     lr: float = 1e-3
     seed: int = 42
+    cell: str = "lstm"  # "lstm" | "gru" — same module serves the GRU twin
 
 
 class LstmForecaster(nn.Module):
     def __init__(self, cfg: LstmConfig) -> None:
         super().__init__()
         self.cfg = cfg
-        self.lstm = nn.LSTM(
+        rnn_cls = nn.LSTM if cfg.cell == "lstm" else nn.GRU
+        self.lstm = rnn_cls(
             input_size=1,
             hidden_size=cfg.hidden_size,
             num_layers=cfg.num_layers,

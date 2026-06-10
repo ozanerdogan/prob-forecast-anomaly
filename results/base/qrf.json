@@ -1,0 +1,32 @@
+{
+  "n_predictions": 1440,
+  "crps": 2.0956298138525002,
+  "pinball": 1.0478149069262501,
+  "picp": 0.6861111111111111,
+  "mpiw": 9.474470002120507,
+  "mis": 21.943194558531612,
+  "picp_alpha": 0.9,
+  "rmse": 4.292178691127447,
+  "mae": 3.4006348251223155,
+  "smape": 97.82831927157221,
+  "mase": 1.3092894175799699,
+  "model": "qrf",
+  "target": "T (degC)",
+  "lookback": 168,
+  "horizon": 24,
+  "n_estimators": 10,
+  "min_samples_leaf": 50,
+  "max_samples_leaf": 32,
+  "train_stride": 3,
+  "quantiles": [
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    0.9,
+    0.95
+  ],
+  "seed": 42,
+  "smoke": true
+}

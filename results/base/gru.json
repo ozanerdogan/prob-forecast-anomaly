@@ -1,0 +1,60 @@
+{
+  "n_predictions": 8616,
+  "rmse": 2.3856889074472467,
+  "mae": 1.7710868746169268,
+  "smape": 32.906849062066456,
+  "mase": 0.6818918886339824,
+  "model": "gru",
+  "target": "T (degC)",
+  "lookback": 168,
+  "horizon": 24,
+  "hidden_size": 64,
+  "num_layers": 2,
+  "epochs": 8,
+  "cell": "gru",
+  "seed": 42,
+  "device": "cuda",
+  "smoke": false,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.27141478789203305,
+      "val_loss": 0.19419400643702991
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.12319290521098118,
+      "val_loss": 0.12251142970177048
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.1026444899320018,
+      "val_loss": 0.11675145676848608
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.09762965745347388,
+      "val_loss": 0.11084830174066501
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.09471561719535612,
+      "val_loss": 0.10729992622769745
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.09293311231714838,
+      "val_loss": 0.10902314645618034
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.09192499569525905,
+      "val_loss": 0.10641634818062436
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.09072626254283915,
+      "val_loss": 0.10517031129179054
+    }
+  ]
+}

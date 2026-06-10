@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src import experiment as E  # noqa: E402
-from src.anomaly import apply_anomaly, linf_fgsm  # noqa: E402
+from src.anomaly import FAULT_TYPES_V2, VAL_STREAM_INDEX, apply_anomaly, linf_fgsm  # noqa: E402
 from src.baselines.lstm_baseline import LstmConfig  # noqa: E402
 from src.baselines.naive_seasonal import naive_seasonal_forecast  # noqa: E402
 from src.calibration import apply_spread_temperature, coverage_at, fit_spread_temperature  # noqa: E402
@@ -75,7 +75,12 @@ def _naive_forecast_batch(ctx, horizon, season=24):
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument("--catalog", choices=("v1", "v2"), default="v1",
+                        help="v2 adds the phase-2 fault families (flatline, drift, "
+                             "noise_burst, gap_imputation, clock_skew) to the sweep; "
+                             "the phase-4 rerun wave flips this on")
     args = parser.parse_args()
+    nongrad_types = NONGRAD_TYPES + (FAULT_TYPES_V2 if args.catalog == "v2" else ())
 
     lstm_cfg = LstmConfig()
     deepar_cfg = DeepARConfig()
@@ -146,14 +151,14 @@ def main() -> None:
     print("Dumping validation anomaly predictions ...")
     g_va_qt = E.qtransformer_context_grad(qt, x_va, y_va, QUANTILES)
     g_va_da = E.deepar_context_grad(deepar, deepar_cfg, yseq_va, cov_va)
-    for ki, kind in enumerate(NONGRAD_TYPES + ("fgsm",)):
+    for kind in nongrad_types + ("fgsm",):
         for intensity in INTENSITIES:
             setting = f"{kind}_{intensity:.1f}"
             if kind == "fgsm":
                 ctx_va_da, _ = linf_fgsm(ctx_va, g_va_da, intensity)
                 ctx_va_qt, _ = linf_fgsm(ctx_va, g_va_qt, intensity)
             else:
-                rng_va = np.random.default_rng([SEED, 1, ki, int(10 * intensity)])
+                rng_va = np.random.default_rng([SEED, 1, VAL_STREAM_INDEX[kind], int(10 * intensity)])
                 ctx_va_adv, _ = apply_anomaly(ctx_va, kind, intensity, rng_va)
                 ctx_va_da = ctx_va_qt = ctx_va_adv
             yseq_adv = yseq_va.copy()
@@ -185,7 +190,8 @@ def main() -> None:
     results: dict = {
         "config": {
             "intensities": list(INTENSITIES),
-            "anomaly_types": list(NONGRAD_TYPES) + ["fgsm"],
+            "anomaly_types": list(nongrad_types) + ["fgsm"],
+            "catalog": args.catalog,
             "alpha": ALPHA,
             "seed": SEED,
             "smoke": bool(args.smoke),
@@ -249,7 +255,7 @@ def main() -> None:
     # ----------------------------------------------------------------- #
     # Anomaly sweep.
     # ----------------------------------------------------------------- #
-    for kind in NONGRAD_TYPES + ("fgsm",):
+    for kind in nongrad_types + ("fgsm",):
         results["anomaly"][kind] = {}
         for intensity in INTENSITIES:
             rng = np.random.default_rng(SEED)

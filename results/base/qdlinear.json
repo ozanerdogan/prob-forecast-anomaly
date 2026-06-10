@@ -1,0 +1,75 @@
+{
+  "n_predictions": 8616,
+  "crps": 1.0748680733164864,
+  "pinball": 0.5374340366582432,
+  "picp": 0.9352367688022284,
+  "mpiw": 8.7659893563382,
+  "mis": 10.126463202628306,
+  "picp_alpha": 0.9,
+  "rmse": 2.482866414447625,
+  "mae": 1.8398584450914797,
+  "smape": 34.96709600411904,
+  "mase": 0.7083698519886509,
+  "model": "qdlinear",
+  "target": "T (degC)",
+  "lookback": 168,
+  "horizon": 24,
+  "kernel": 25,
+  "epochs": 8,
+  "seed": 42,
+  "device": "cuda",
+  "smoke": false,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.11888820396772787,
+      "val_loss": 0.08114042491053736
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.07418947221309531,
+      "val_loss": 0.0742107759224636
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.07069131885381306,
+      "val_loss": 0.07242738823900675
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.06969867580953766,
+      "val_loss": 0.07235559529765358
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.06917879412717678,
+      "val_loss": 0.07201210840204575
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.06894125037041365,
+      "val_loss": 0.07240824230722875
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.06878292929454177,
+      "val_loss": 0.07182849442076417
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.0685627211579213,
+      "val_loss": 0.07145232975732681
+    }
+  ],
+  "loss": "pinball",
+  "quantiles": [
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    0.9,
+    0.95
+  ],
+  "pair_note": "probabilistic linear twin of dlinear (same backbone/budget)"
+}

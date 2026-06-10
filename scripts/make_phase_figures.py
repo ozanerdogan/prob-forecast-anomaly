@@ -455,6 +455,57 @@ def fig_p3_robust_training() -> None:
     _save(fig, 3, "robust_training_picp.png")
 
 
+def fig_p3_horizon() -> None:
+    p = RES / "base" / "horizon_ablation.json"
+    if not p.exists():
+        return
+    d = json.loads(p.read_text())
+    hs = sorted(d["results"], key=lambda h: int(h[:-1]))
+    fig, ax = plt.subplots(figsize=(4.8, 3.0))
+    x = [int(h[:-1]) for h in hs]
+    ax.plot(x, [d["results"][h]["rmse"] for h in hs], "o-", color="#1f4e79", label="RMSE")
+    ax.plot(x, [d["results"][h]["crps"] for h in hs], "s-", color="#e67e22", label="CRPS")
+    for h in hs:
+        ax.annotate(f"{d['results'][h]['rmse']:.2f}", (int(h[:-1]), d["results"][h]["rmse"]),
+                    textcoords="offset points", xytext=(0, 6), fontsize=7, ha="center")
+    ax.axvline(24, color="grey", lw=0.7, ls=":")
+    ax.set_xticks(x)
+    ax.set_xlabel("tahmin ufku (saat)")
+    ax.set_ylabel("hata")
+    ax.set_title("Faz 3 — Horizon ablation: hata ufukla büyüyor (24h seçimi)")
+    ax.legend(frameon=False)
+    ax.grid(alpha=0.25)
+    _save(fig, 3, "horizon_ablation.png")
+
+
+def fig_p3_extreme_quantiles() -> None:
+    p = RES / "base" / "qt_extreme_quantiles.json"
+    if not p.exists():
+        return
+    d = json.loads(p.read_text())
+    blocks = ["full", "cold_decile", "hot_decile"]
+    levels = ["90pct", "95pct", "98pct"]
+    fig, ax = plt.subplots(figsize=(5.6, 3.0))
+    x = np.arange(len(levels))
+    w = 0.26
+    colors = {"full": "#1f4e79", "cold_decile": "#2980b9", "hot_decile": "#c0392b"}
+    for k, b in enumerate(blocks):
+        if b not in d:
+            continue
+        picps = [d[b][l]["picp"] for l in levels]
+        ax.bar(x + (k - 1) * w, picps, w, color=colors[b], label=b.replace("_decile", ""))
+    for l, lev in enumerate(levels):
+        ax.axhline(float(lev[:2]) / 100, color="k", lw=0.5, ls=":")
+    ax.set_xticks(x)
+    ax.set_xticklabels(["%90", "%95", "%98"])
+    ax.set_ylabel("PICP")
+    ax.set_ylim(0.7, 1.0)
+    ax.set_title("Faz 3 — Ekstrem quantile: %90/95/98 aralık (tam + uç deciller)")
+    ax.legend(frameon=False, fontsize=7)
+    ax.grid(axis="y", alpha=0.25)
+    _save(fig, 3, "extreme_quantiles.png")
+
+
 def fig_p3_ensemble_intervals() -> None:
     p = RES / "base" / "ensemble_intervals.json"
     if not p.exists():

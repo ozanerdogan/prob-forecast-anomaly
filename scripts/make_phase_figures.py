@@ -285,7 +285,11 @@ def fig_p2_covariate_independent() -> None:
     if not p.exists():
         return
     d = json.loads(p.read_text())
-    rows = sorted(d["splits"]["test"]["permuted"].items(),
+    # report version: drop uninformative channels (hour: stride-24 artefact,
+    # doy_sin: ~0, doy_cos already carries the season)
+    SKIP = {"hour_sin", "hour_cos", "doy_sin"}
+    rows = sorted((kv for kv in d["splits"]["test"]["permuted"].items()
+                   if kv[0] not in SKIP),
                   key=lambda kv: kv[1]["delta_crps"])
     names, vals, cs = [], [], []
     for n, v in rows:

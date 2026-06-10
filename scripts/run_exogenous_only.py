@@ -45,14 +45,26 @@ ALPHA = 0.1
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+# Variables from which temperature is NOT analytically recoverable: pressure,
+# relative humidity, wind speed/gust/direction. The thermodynamic family
+# (Tpot, Tdew, VP*, sh, H2OC, rho) leaks T almost exactly (VPmax->T RMSE
+# 0.05 degC, Tpot+p->T 0.01 degC -- see the leakage check), so an honest
+# "no temperature" input must exclude them.
+TRULY_INDEPENDENT = ["p (mbar)", "rh (%)", "wv (m/s)", "max. wv (m/s)", "wd (deg)"]
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--smoke", action="store_true")
+    ap.add_argument("--covset", choices=("all", "independent"), default="all",
+                    help="'all' = 13 exogenous incl. temperature-derived proxies "
+                         "(LEAKS T); 'independent' = only p/rh/wind (no T leakage)")
     args = ap.parse_args()
 
     df = load_hourly(ROOT / "data" / "processed")
-    all_cov = [c for c in df.columns if c != TARGET]
-    data = E.prepare(use_covariates=True, covariate_cols=all_cov)  # T + cal + 13
+    all_cov = ([c for c in df.columns if c != TARGET] if args.covset == "all"
+               else list(TRULY_INDEPENDENT))
+    data = E.prepare(use_covariates=True, covariate_cols=all_cov)
     L, H = 168, 24
 
     x_tr, y_tr = make_encoder_windows(data.train, L, H, stride=1)
@@ -94,14 +106,20 @@ def main() -> None:
         refs["naive_seasonal"] = {"rmse": json.loads(nv.read_text())["rmse"]}
 
     out = {
+        "covset": args.covset,
+        "covariates_used": all_cov,
+        "leaks_temperature": args.covset == "all",
         "exogenous_only": {"crps": r["crps"], "rmse": r["rmse"], "picp": r["picp"],
                            "n_input_channels": n_feat},
         "references": refs,
-        "interpretation": "compare exogenous_only vs target_only: if close, past T "
-                          "is redundant given the other sensors; if far, T dominates",
+        "interpretation": ("covset=all LEAKS T via VPmax/Tpot (RMSE matches target-only "
+                           "trivially); covset=independent is the honest no-temperature "
+                           "test -- if far above naive, the independent sensors alone "
+                           "cannot forecast temperature"),
         "smoke": bool(args.smoke),
     }
-    out_path = ROOT / "results" / "base" / "exogenous_only.json"
+    suffix = "" if args.covset == "all" else "_independent"
+    out_path = ROOT / "results" / "base" / f"exogenous_only{suffix}.json"
     out_path.write_text(json.dumps(out, indent=2))
     print("\n=== Üç-yönlü girdi kıyası (test CRPS / RMSE) ===")
     print(f"  target-only (sadece T) : CRPS {refs.get('target_only',{}).get('crps','?')}  "

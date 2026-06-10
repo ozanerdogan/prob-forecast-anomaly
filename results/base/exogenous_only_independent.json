@@ -1,0 +1,33 @@
+{
+  "covset": "independent",
+  "covariates_used": [
+    "p (mbar)",
+    "rh (%)",
+    "wv (m/s)",
+    "max. wv (m/s)",
+    "wd (deg)"
+  ],
+  "leaks_temperature": false,
+  "exogenous_only": {
+    "crps": 1.8567004703670722,
+    "rmse": 3.676098505605795,
+    "picp": 0.6403203342618384,
+    "n_input_channels": 9
+  },
+  "references": {
+    "target_only": {
+      "crps": 1.0220161001030914,
+      "rmse": 2.4304359384593623,
+      "picp": 0.9048282265552461
+    },
+    "full_T_plus_cov": {
+      "crps": 0.9840528744934074,
+      "rmse": 2.257870605437487
+    },
+    "naive_seasonal": {
+      "rmse": 3.2104438674263016
+    }
+  },
+  "interpretation": "covset=all LEAKS T via VPmax/Tpot (RMSE matches target-only trivially); covset=independent is the honest no-temperature test -- if far above naive, the independent sensors alone cannot forecast temperature",
+  "smoke": false
+}

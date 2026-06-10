@@ -286,21 +286,26 @@ def fig_p2_input_value() -> None:
         return
     d = json.loads(p.read_text())
     e, r = d["exogenous_only"], d["references"]
+    pi = RES / "base" / "exogenous_only_independent.json"
+    indep = json.loads(pi.read_text())["exogenous_only"]["rmse"] if pi.exists() else None
     bars = [
         ("naive\n(referans)", r.get("naive_seasonal", {}).get("rmse"), "#7f8c8d"),
+        ("bağımsız-only\n(p/rh/wv, T izi YOK)", indep, "#c0392b"),
+        ("exo+proxy\n(VPmax→T sızıntı)", e["rmse"], "#e67e22"),
         ("sadece T\n(target-only)", r.get("target_only", {}).get("rmse"), "#1f4e79"),
-        ("T YOK\n(exo+proxy)", e["rmse"], "#c0392b"),
         ("T + 13 cov\n(full)", r.get("full_T_plus_cov", {}).get("rmse"), "#27ae60"),
     ]
     bars = [b for b in bars if b[1] is not None]
-    fig, ax = plt.subplots(figsize=(5.6, 3.0))
+    fig, ax = plt.subplots(figsize=(6.8, 3.2))
     ax.bar([b[0] for b in bars], [b[1] for b in bars], color=[b[2] for b in bars])
     for i, b in enumerate(bars):
         ax.text(i, b[1] + 0.03, f"{b[1]:.2f}", ha="center", fontsize=8)
+    ax.axhline(r.get("naive_seasonal", {}).get("rmse", 3.21), color="k", lw=0.7, ls=":")
     ax.set_ylabel("test RMSE °C")
     ax.set_ylim(2.0, None)
-    ax.set_title("Faz 2+ — Girdinin değeri: saf T kanalı vs sıcaklık-proxy'leri\n"
-                 "('T YOK' Tpot/Tdew/rho gibi proxy'leri İÇERİR → T'yi ikame ediyor)")
+    ax.set_title("Faz 2+ — Sıcaklık bilgisi vazgeçilmez\n"
+                 "T-proxy'siz (kırmızı) naive'in BİLE altında; VPmax sızıntısı T'yi geri getiriyor")
+    ax.tick_params(axis="x", labelsize=7)
     ax.grid(axis="y", alpha=0.25)
     _save(fig, 2, "input_value.png")
 

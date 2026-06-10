@@ -383,20 +383,107 @@ def fig_p3_ensemble_intervals() -> None:
     _save(fig, 3, "ensemble_intervals.png")
 
 
+# ------------------------------------------------------------------ phase 4
+V2_FAULTS = ("point_spike", "contextual_outlier", "level_shift", "flatline",
+             "drift", "noise_burst", "gap_imputation", "clock_skew", "fgsm")
+
+
+def fig_p4_fault_heatmap() -> None:
+    """v2 fault catalog x intensity -> raw PICP, for a headline prob model."""
+    p = RES / "base" / "report_tables.json"
+    if not p.exists():
+        return
+    rob = json.loads(p.read_text())["robustness_matrix"]
+    models = [m for m in ("qtransformer_multi", "qlstm", "deepar", "qtransformer")
+              if m in rob]
+    if not models:
+        return
+    model = models[0]
+    block = rob[model]
+    faults = [f for f in V2_FAULTS if f"{f}_1.0" in block]
+    intens = (1.0, 2.0, 4.0)
+    mat = np.full((len(faults), len(intens)), np.nan)
+    for i, f in enumerate(faults):
+        for j, it in enumerate(intens):
+            s = block.get(f"{f}_{it:.1f}")
+            if s:
+                mat[i, j] = s["picp"]
+    fig, ax = plt.subplots(figsize=(4.6, 4.2))
+    im = ax.imshow(mat, aspect="auto", cmap="RdYlGn", vmin=0.0, vmax=0.95)
+    ax.set_xticks(range(len(intens)))
+    ax.set_xticklabels([f"{i:g}×" for i in intens])
+    ax.set_yticks(range(len(faults)))
+    ax.set_yticklabels(faults)
+    for i in range(len(faults)):
+        for j in range(len(intens)):
+            if not np.isnan(mat[i, j]):
+                ax.text(j, i, f"{mat[i,j]:.2f}", ha="center", va="center", fontsize=7)
+    ax.axhline(2.5, color="k", lw=1.2)  # separates v1 (top 3) from v2 faults
+    ax.set_title(f"Faz 4 — v2 arıza kataloğu, ham PICP ({model})\n(üst 3 = v1, alt 5 = yeni)")
+    fig.colorbar(im, ax=ax, fraction=0.046, label="PICP (hedef 0.90)")
+    _save(fig, 4, "fault_catalog_heatmap.png")
+
+
+def fig_p4_robust_plus_cal() -> None:
+    p = RES / "base" / "robust_plus_cal.json"
+    if not p.exists():
+        return
+    rc = json.loads(p.read_text())
+    settings = [s for s in ("clean", "level_shift_1.0", "level_shift_2.0",
+                            "level_shift_4.0", "fgsm_4.0") if s in rc["settings"]]
+    corners = [("normal_raw", "#7f8c8d", "normal ham"),
+               ("normal_aci", "#1f4e79", "normal+ACI"),
+               ("robust_raw", "#e67e22", "robust ham"),
+               ("robust_aci", "#27ae60", "robust+ACI")]
+    x = np.arange(len(settings))
+    w = 0.2
+    fig, ax = plt.subplots(figsize=(7.2, 3.0))
+    for k, (key, color, label) in enumerate(corners):
+        ax.bar(x + (k - 1.5) * w, [rc["settings"][s][key]["picp"] for s in settings],
+               w, color=color, label=label)
+    ax.axhline(0.9, color="k", lw=0.7, ls=":")
+    ax.set_xticks(x)
+    ax.set_xticklabels([s.replace("_", "\n") for s in settings], fontsize=7)
+    ax.set_ylabel("PICP")
+    ax.set_title("Faz 4 — Model-tarafı (robust) × aralık-tarafı (ACI): 4 köşe")
+    ax.legend(frameon=False, ncol=2, fontsize=7)
+    ax.grid(axis="y", alpha=0.25)
+    _save(fig, 4, "robust_plus_cal.png")
+
+
+def fig_p4_leaderboard() -> None:
+    p = RES / "base" / "report_tables.json"
+    if not p.exists():
+        return
+    lb = json.loads(p.read_text())["clean_leaderboard"]
+    rows = sorted(lb.items(), key=lambda kv: kv[1]["rmse"])
+    fig, ax = plt.subplots(figsize=(6.2, 3.6))
+    names = [r[0] for r in rows]
+    ax.barh(names, [r[1]["rmse"] for r in rows], color="#1f4e79")
+    for i, (_, r) in enumerate(rows):
+        if "picp" in r:
+            ax.text(r["rmse"] + 0.02, i, f"PICP {r['picp']:.2f}", va="center", fontsize=6.5)
+    ax.set_xlabel("temiz test RMSE °C (nokta / medyan)")
+    ax.set_title("Faz 4 — Tam kadro temiz-test sıralaması")
+    ax.invert_yaxis()
+    _save(fig, 4, "final_leaderboard.png")
+
+
 PHASES = {
     1: (fig_p1_picp_vs_intensity, fig_p1_mis_ls4, fig_p1_significance),
     2: (fig_p2_roster, fig_p2_paired_families, fig_p2_raw_robustness,
         fig_p2_permutation_importance, fig_p2_natural_extremes),
     3: (fig_p3_hpo, fig_p3_multiseed, fig_p3_cv, fig_p3_robust_training,
         fig_p3_ensemble_intervals),
+    4: (fig_p4_fault_heatmap, fig_p4_robust_plus_cal, fig_p4_leaderboard),
 }
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--phase", default="all", choices=("1", "2", "3", "all"))
+    ap.add_argument("--phase", default="all", choices=("1", "2", "3", "4", "all"))
     args = ap.parse_args()
-    phases = (1, 2, 3) if args.phase == "all" else (int(args.phase),)
+    phases = (1, 2, 3, 4) if args.phase == "all" else (int(args.phase),)
     for ph in phases:
         print(f"Phase {ph} figures:")
         for fn in PHASES[ph]:

@@ -76,6 +76,24 @@ overconfident-failure analysis), and a **visualization** suite.
 > encoder never reads horizon covariates, so its `qtransformer_multivariate` is
 > already a leakage-free past-covariate setting.
 
+## Phase reports
+
+The work after the progress report is organised in four phases; each has a
+compact report with headline numbers, figures and an honest what-worked /
+what-didn't section. Start with the synthesis:
+
+- **[report/SUMMARY.md](report/SUMMARY.md)** — Phase 1–4 synthesis (what we did
+  / why / what we expected / outcome).
+- [Phase 1](report/phase1_report.md) — adaptive calibration (ACI, input-conditional).
+- [Phase 2](report/phase2_report.md) — 13-model roster, multivariate base, v2 fault catalog.
+- [Phase 3](report/phase3_report.md) — HPO, multi-seed, CV, robust training, ensembles.
+- [Phase 4](report/phase4_report.md) — v2 sweep, robust×calibration combined study, report tables.
+
+Headline: under a 4-sigma level shift the 90% interval covers 27% of outcomes;
+static repair reaches 32%, online adaptive calibration 85%, and **anomaly-robust
+training + adaptive calibration together 87%** while keeping the point forecast
+(median RMSE 5.4 vs 9.0 uncalibrated).
+
 ## Repository Structure
 
 ```
@@ -175,6 +193,15 @@ python scripts/run_robust_training.py     # anomaly-augmented training
 python scripts/run_tail_oversampling.py   # tail reweighting + calibration recheck
 python scripts/run_ensemble_intervals.py  # quantile-averaging ensemble
 python scripts/run_composite_anomaly.py   # overlapping faults
+
+# 5g. Phase-4 consolidation: v2 fault sweep + combined study + report tables
+python scripts/run_anomaly_eval.py --catalog v2   # 8-fault sweep (headline models)
+python scripts/run_qlstm.py --catalog v2
+python scripts/run_qtransformer_multi.py --catalog v2
+python scripts/run_lgbm.py --catalog v2
+python scripts/run_qlstm_robust.py                # robust model as a first-class dump
+python scripts/run_robust_plus_cal.py             # model-side x interval-side 4 corners
+python scripts/make_report_tables.py              # leaderboard / robustness / calibration
 
 # Phase reports + figures (figures read the result JSONs, no model runs)
 python scripts/make_phase_figures.py --phase all

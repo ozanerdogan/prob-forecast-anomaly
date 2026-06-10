@@ -1,0 +1,32 @@
+{
+  "n_predictions": 8616,
+  "crps": 1.1533697305367263,
+  "pinball": 0.5766848652683632,
+  "picp": 0.9381383472609099,
+  "mpiw": 9.690840536177902,
+  "mis": 11.014242478061844,
+  "picp_alpha": 0.9,
+  "rmse": 2.5967538730718815,
+  "mae": 1.9710334493499078,
+  "smape": 36.405707323181986,
+  "mase": 0.7588739675148842,
+  "model": "qlstm_robust",
+  "target": "T (degC)",
+  "lookback": 168,
+  "horizon": 24,
+  "epochs": 8,
+  "quantiles": [
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    0.9,
+    0.95
+  ],
+  "seed": 42,
+  "device": "cuda",
+  "smoke": false,
+  "augment": "p=0.5 per batch {spike,outlier,level_shift}x{1,2,4}",
+  "note": "anomaly-augmented twin of qlstm; combine with calibrate_* for the 4-corner study"
+}

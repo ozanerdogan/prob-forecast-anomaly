@@ -34,7 +34,8 @@ from src import experiment as E  # noqa: E402
 from src.data_loader import load_hourly  # noqa: E402
 from src.features import build_feature_frame  # noqa: E402
 from src.metrics import mase, report_probabilistic, smape  # noqa: E402
-from src.model_eval import evaluate_and_dump  # noqa: E402
+from src.anomaly import FAULT_TYPES_V2  # noqa: E402
+from src.model_eval import NONGRAD_V1, evaluate_and_dump  # noqa: E402
 from src.models.quantile_transformer import QTransformerConfig, QUANTILES_7  # noqa: E402
 from src.predictions_io import load_predictions, prediction_path  # noqa: E402
 from src.preprocessing import TARGET  # noqa: E402
@@ -53,7 +54,10 @@ def _scores(y_flat, q_flat):
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument("--catalog", choices=("v1", "v2"), default="v1",
+                        help="v2 adds the phase-2 fault families to the sweep")
     args = parser.parse_args()
+    nongrad = NONGRAD_V1 + (FAULT_TYPES_V2 if args.catalog == "v2" else ())
 
     data = E.prepare(use_covariates=True)
     cols = list(build_feature_frame(load_hourly(ROOT / "data" / "processed"),
@@ -70,7 +74,7 @@ def main() -> None:
 
     metrics = evaluate_and_dump(
         "qtransformer_multi", data, predict_fn, root=ROOT, grad_fn=grad_fn,
-        quantiles=QUANTILES, smoke=args.smoke,
+        quantiles=QUANTILES, nongrad_types=nongrad, smoke=args.smoke,
     )
 
     pred_dir = ROOT / "results" / ("predictions_smoke" if args.smoke else "predictions")

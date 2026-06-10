@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src import experiment as E  # noqa: E402
-from src.anomaly import apply_anomaly  # noqa: E402
+from src.anomaly import FAULT_TYPES_V2, VAL_STREAM_INDEX, apply_anomaly  # noqa: E402
 from src.cleaning import hampel_clean  # noqa: E402
 from src.metrics import mase, report, report_probabilistic, smape  # noqa: E402
 from src.models.lgbm_quantile import (  # noqa: E402
@@ -51,7 +51,10 @@ SEED = 42
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke", action="store_true", help="tiny fast sanity run")
+    parser.add_argument("--catalog", choices=("v1", "v2"), default="v1",
+                        help="v2 adds the phase-2 fault families to the sweep")
     args = parser.parse_args()
+    nongrad = NONGRAD_TYPES + (FAULT_TYPES_V2 if args.catalog == "v2" else ())
 
     cfg = LgbmConfig()
     data = E.prepare(use_covariates=False)
@@ -128,15 +131,15 @@ def main() -> None:
     yv_true = inv(y_va)
     print("Dumping predictions (val/test, clean + injected + cleaned) ...")
     dump("val", "clean", ctx_va, yv_true)
-    for ki, kind in enumerate(NONGRAD_TYPES):  # ki matches run_anomaly_eval order
+    for kind in nongrad:  # VAL_STREAM_INDEX matches run_anomaly_eval / model_eval
         for intensity in INTENSITIES:
-            rng_va = np.random.default_rng([SEED, 1, ki, int(10 * intensity)])
+            rng_va = np.random.default_rng([SEED, 1, VAL_STREAM_INDEX[kind], int(10 * intensity)])
             ctx_adv, _ = apply_anomaly(ctx_va, kind, intensity, rng_va)
             dump("val", f"{kind}_{intensity:.1f}", ctx_adv, yv_true)
 
     dump("test", "clean", ctx_te, y_true)
     dump("test", "clean__cleaned", hampel_clean(ctx_te), y_true)
-    for kind in NONGRAD_TYPES:
+    for kind in nongrad:
         for intensity in INTENSITIES:
             rng = np.random.default_rng(SEED)  # same stream as run_anomaly_eval
             ctx_adv, _ = apply_anomaly(ctx_te, kind, intensity, rng)

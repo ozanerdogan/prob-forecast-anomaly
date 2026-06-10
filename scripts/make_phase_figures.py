@@ -253,6 +253,33 @@ def fig_p2_permutation_importance() -> None:
     _save(fig, 2, "permutation_importance.png")
 
 
+def fig_p2_covariate_full() -> None:
+    p = RES / "base" / "covariate_importance_full.json"
+    if not p.exists():
+        return
+    d = json.loads(p.read_text())
+    rows = sorted(d["splits"]["test"]["permuted"].items(),
+                  key=lambda kv: kv[1]["delta_crps"])
+    color = {True: "#c0392b", False: "#1f4e79"}  # temp-derived red, independent blue
+    cols, vals, cs = [], [], []
+    for n, v in rows:
+        cols.append(n)
+        vals.append(v["delta_crps"])
+        if v["is_calendar"]:
+            cs.append("#7f8c8d")
+        elif v["is_temp_derived"]:
+            cs.append("#c0392b")
+        else:
+            cs.append("#27ae60")
+    fig, ax = plt.subplots(figsize=(6.4, 4.4))
+    ax.barh(cols, vals, color=cs)
+    ax.set_xlabel("ΔCRPS (kanal pencereler-arası karıştırılınca)")
+    ax.set_title("Faz 2+ — 13 covariate tam önem tablosu (QT, test)\n"
+                 "kırmızı = sıcaklık-türevi (yarı-sızıntı) · yeşil = bağımsız sensör · gri = takvim")
+    ax.grid(axis="x", alpha=0.25)
+    _save(fig, 2, "covariate_importance_full.png")
+
+
 def fig_p2_natural_extremes() -> None:
     p = RES / "base" / "natural_extremes.json"
     if not p.exists():
@@ -472,7 +499,7 @@ def fig_p4_leaderboard() -> None:
 PHASES = {
     1: (fig_p1_picp_vs_intensity, fig_p1_mis_ls4, fig_p1_significance),
     2: (fig_p2_roster, fig_p2_paired_families, fig_p2_raw_robustness,
-        fig_p2_permutation_importance, fig_p2_natural_extremes),
+        fig_p2_permutation_importance, fig_p2_covariate_full, fig_p2_natural_extremes),
     3: (fig_p3_hpo, fig_p3_multiseed, fig_p3_cv, fig_p3_robust_training,
         fig_p3_ensemble_intervals),
     4: (fig_p4_fault_heatmap, fig_p4_robust_plus_cal, fig_p4_leaderboard),

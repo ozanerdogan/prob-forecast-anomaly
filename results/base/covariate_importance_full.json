@@ -1,0 +1,243 @@
+{
+  "n_channels": 18,
+  "channels": [
+    "T (degC)",
+    "hour_sin",
+    "hour_cos",
+    "doy_sin",
+    "doy_cos",
+    "p (mbar)",
+    "Tpot (K)",
+    "Tdew (degC)",
+    "rh (%)",
+    "VPmax (mbar)",
+    "VPact (mbar)",
+    "VPdef (mbar)",
+    "sh (g/kg)",
+    "H2OC (mmol/mol)",
+    "rho (g/m**3)",
+    "wv (m/s)",
+    "max. wv (m/s)",
+    "wd (deg)"
+  ],
+  "method": "permutation importance (channel shuffled across windows, seed 42)",
+  "temp_derived_note": "Tpot/Tdew/VP*/sh/H2OC/rho are thermodynamic near-duplicates of T (partial leakage)",
+  "splits": {
+    "val": {
+      "base_crps": 1.1195869066064108,
+      "base_rmse": 2.579332396185792,
+      "permuted": {
+        "hour_sin": {
+          "delta_crps": 0.0,
+          "delta_rmse": 0.0,
+          "is_calendar": true,
+          "is_temp_derived": false
+        },
+        "hour_cos": {
+          "delta_crps": 0.0,
+          "delta_rmse": 0.0,
+          "is_calendar": true,
+          "is_temp_derived": false
+        },
+        "doy_sin": {
+          "delta_crps": 0.04431035406876771,
+          "delta_rmse": 0.06739934904476064,
+          "is_calendar": true,
+          "is_temp_derived": false
+        },
+        "doy_cos": {
+          "delta_crps": 0.9010506574848804,
+          "delta_rmse": 1.6250147645398818,
+          "is_calendar": true,
+          "is_temp_derived": false
+        },
+        "p (mbar)": {
+          "delta_crps": 0.2975013232067052,
+          "delta_rmse": 0.5266691616375874,
+          "is_calendar": false,
+          "is_temp_derived": false
+        },
+        "Tpot (K)": {
+          "delta_crps": 0.3339864099306531,
+          "delta_rmse": 0.4694647992151766,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "Tdew (degC)": {
+          "delta_crps": 0.2958059077499866,
+          "delta_rmse": 0.34005599468632397,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "rh (%)": {
+          "delta_crps": 0.09605075503507621,
+          "delta_rmse": 0.13549311142817722,
+          "is_calendar": false,
+          "is_temp_derived": false
+        },
+        "VPmax (mbar)": {
+          "delta_crps": 0.06211762911504182,
+          "delta_rmse": 0.06277451404945689,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "VPact (mbar)": {
+          "delta_crps": 0.22445675059603398,
+          "delta_rmse": 0.3106502290367943,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "VPdef (mbar)": {
+          "delta_crps": 0.1812157827019727,
+          "delta_rmse": 0.3332721889453656,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "sh (g/kg)": {
+          "delta_crps": 0.055957940643297066,
+          "delta_rmse": 0.07180764443570897,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "H2OC (mmol/mol)": {
+          "delta_crps": 0.0227606078932594,
+          "delta_rmse": 0.03428634117785068,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "rho (g/m**3)": {
+          "delta_crps": 0.34784665540633,
+          "delta_rmse": 0.42216754574174686,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "wv (m/s)": {
+          "delta_crps": 0.16446016497618987,
+          "delta_rmse": 0.24612433911139853,
+          "is_calendar": false,
+          "is_temp_derived": false
+        },
+        "max. wv (m/s)": {
+          "delta_crps": 0.21979339451588165,
+          "delta_rmse": 0.3616343779042164,
+          "is_calendar": false,
+          "is_temp_derived": false
+        },
+        "wd (deg)": {
+          "delta_crps": 0.13983522607544585,
+          "delta_rmse": 0.21081959844825926,
+          "is_calendar": false,
+          "is_temp_derived": false
+        }
+      }
+    },
+    "test": {
+      "base_crps": 0.9840528744934074,
+      "base_rmse": 2.257870605437487,
+      "permuted": {
+        "hour_sin": {
+          "delta_crps": 0.0,
+          "delta_rmse": 0.0,
+          "is_calendar": true,
+          "is_temp_derived": false
+        },
+        "hour_cos": {
+          "delta_crps": 0.0,
+          "delta_rmse": 0.0,
+          "is_calendar": true,
+          "is_temp_derived": false
+        },
+        "doy_sin": {
+          "delta_crps": 0.016048024725739296,
+          "delta_rmse": 0.03388853925869828,
+          "is_calendar": true,
+          "is_temp_derived": false
+        },
+        "doy_cos": {
+          "delta_crps": 0.9454704578111683,
+          "delta_rmse": 1.7600693572214117,
+          "is_calendar": true,
+          "is_temp_derived": false
+        },
+        "p (mbar)": {
+          "delta_crps": 0.25007850216041994,
+          "delta_rmse": 0.49458790957069887,
+          "is_calendar": false,
+          "is_temp_derived": false
+        },
+        "Tpot (K)": {
+          "delta_crps": 0.4603481200566637,
+          "delta_rmse": 0.6952033884429056,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "Tdew (degC)": {
+          "delta_crps": 0.3820861126757442,
+          "delta_rmse": 0.4966211263540421,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "rh (%)": {
+          "delta_crps": 0.08103665033720975,
+          "delta_rmse": 0.12890664848023414,
+          "is_calendar": false,
+          "is_temp_derived": false
+        },
+        "VPmax (mbar)": {
+          "delta_crps": 0.096315559189466,
+          "delta_rmse": 0.13715150809842847,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "VPact (mbar)": {
+          "delta_crps": 0.2730154398725557,
+          "delta_rmse": 0.3864631072673599,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "VPdef (mbar)": {
+          "delta_crps": 0.2147528865320838,
+          "delta_rmse": 0.42542328673556806,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "sh (g/kg)": {
+          "delta_crps": 0.04840850744077274,
+          "delta_rmse": 0.06693696038123731,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "H2OC (mmol/mol)": {
+          "delta_crps": 0.06378409752639236,
+          "delta_rmse": 0.13744088913840713,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "rho (g/m**3)": {
+          "delta_crps": 0.4005300411576558,
+          "delta_rmse": 0.5424012249448928,
+          "is_calendar": false,
+          "is_temp_derived": true
+        },
+        "wv (m/s)": {
+          "delta_crps": 0.13431292054538524,
+          "delta_rmse": 0.24472642158010016,
+          "is_calendar": false,
+          "is_temp_derived": false
+        },
+        "max. wv (m/s)": {
+          "delta_crps": 0.23855109386564544,
+          "delta_rmse": 0.43094210762737806,
+          "is_calendar": false,
+          "is_temp_derived": false
+        },
+        "wd (deg)": {
+          "delta_crps": 0.12911888601749855,
+          "delta_rmse": 0.2877695625981902,
+          "is_calendar": false,
+          "is_temp_derived": false
+        }
+      }
+    }
+  }
+}

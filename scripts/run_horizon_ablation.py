@@ -36,7 +36,7 @@ from src.seq_data import make_encoder_windows  # noqa: E402
 QUANTILES = np.array(QUANTILES_7)
 ALPHA = 0.1
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-HORIZONS = (12, 24, 48)
+HORIZONS = (12, 24, 48, 168)
 L = 168
 
 

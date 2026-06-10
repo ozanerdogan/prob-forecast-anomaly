@@ -34,6 +34,11 @@ sys.path.insert(0, str(ROOT))
 from src.data_loader import load_raw  # noqa: E402
 from src.metrics import report, report_probabilistic  # noqa: E402
 from src.models.qlstm import QLstmConfig, QUANTILES_7, predict_qlstm, train_qlstm  # noqa: E402
+from src.models.quantile_transformer import (  # noqa: E402
+    QTransformerConfig,
+    predict_quantiles,
+    train_qtransformer,
+)
 from src.preprocessing import Standardizer, TARGET, TRAIN_END, VAL_END  # noqa: E402
 
 QUANTILES = np.array(QUANTILES_7)
@@ -64,6 +69,9 @@ def windows(series: np.ndarray, lookback: int, horizon: int, stride: int):
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--smoke", action="store_true")
+    ap.add_argument("--model", choices=("qlstm", "qtransformer"), default="qlstm",
+                    help="qtransformer is much slower at 1008-step sequences "
+                         "(attention is O(n^2))")
     args = ap.parse_args()
 
     df = load_10min()
@@ -85,14 +93,26 @@ def main() -> None:
         x_tr, y_tr = x_tr[:1500], y_tr[:1500]
         x_te, y_te = x_te[:40], y_te[:40]
 
-    cfg = QLstmConfig(lookback=L10, horizon=H10, batch_size=64)
-    if args.smoke:
-        cfg.epochs = 1
-    print(f"Training 10-min qLSTM (lookback {L10}, horizon {H10}) ...")
-    model, _ = train_qlstm(x_tr, y_tr, x_va, y_va, cfg, device=DEVICE)
+    if args.model == "qlstm":
+        cfg = QLstmConfig(lookback=L10, horizon=H10, batch_size=64)
+        if args.smoke:
+            cfg.epochs = 1
+        print(f"Training 10-min qLSTM (lookback {L10}, horizon {H10}) ...", flush=True)
+        model, _ = train_qlstm(x_tr, y_tr, x_va, y_va, cfg, device=DEVICE)
+        predict = lambda x: predict_qlstm(model, x, device=DEVICE)  # noqa: E731
+    else:  # qtransformer -- needs the channel axis; smaller batch for attention memory
+        cfg = QTransformerConfig(lookback=L10, horizon=H10, n_features=1,
+                                 quantiles=QUANTILES_7, batch_size=16)
+        if args.smoke:
+            cfg.epochs = 1
+        x_tr, x_va, x_te = x_tr[:, :, None], x_va[:, :, None], x_te[:, :, None]
+        print(f"Training 10-min QTransformer (lookback {L10}, horizon {H10}, "
+              f"attention O(n^2)) ...", flush=True)
+        model, _ = train_qtransformer(x_tr, y_tr, x_va, y_va, cfg, device=DEVICE)
+        predict = lambda x: predict_quantiles(model, x, device=DEVICE)  # noqa: E731
 
     inv = lambda a: scaler.inverse_target(a, TARGET)  # noqa: E731
-    q10 = inv(predict_qlstm(model, x_te, device=DEVICE))     # (N, 144, Q)
+    q10 = inv(predict(x_te))                                  # (N, 144, Q)
     y10 = inv(y_te)                                           # (N, 144)
 
     # hourly-equivalent: average each 6-step block -> (N, 24[, Q])
@@ -105,20 +125,22 @@ def main() -> None:
                              QUANTILES, alpha=ALPHA)
     point = report(y_hourly.reshape(-1), med.reshape(-1))
 
-    hourly_ref = json.loads((ROOT / "results" / "base" / "qlstm.json").read_text())
+    ref_file = "qlstm.json" if args.model == "qlstm" else "qtransformer.json"
+    hourly_ref = json.loads((ROOT / "results" / "base" / ref_file).read_text())
     out = {
-        "resolution": "10min", "lookback_steps": L10, "horizon_steps": H10,
-        "eval": "hourly-equivalent (6-step block mean), comparable to qlstm.json",
+        "model": args.model, "resolution": "10min", "lookback_steps": L10, "horizon_steps": H10,
+        "eval": f"hourly-equivalent (6-step block mean), comparable to {ref_file}",
         "smoke": bool(args.smoke),
         "10min_hourly_equiv": {"rmse": point["rmse"], "crps": r["crps"], "picp": r["picp"]},
-        "hourly_reference_qlstm": {"rmse": hourly_ref["rmse"], "crps": hourly_ref["crps"],
-                                   "picp": hourly_ref["picp"]},
+        "hourly_reference": {"model": args.model, "rmse": hourly_ref["rmse"],
+                             "crps": hourly_ref["crps"], "picp": hourly_ref["picp"]},
         "note": "quantile-block-averaging narrows the predictive spread, so PICP "
                 "is only approximately comparable; RMSE is the clean comparison.",
     }
-    out_path = ROOT / "results" / "base" / "ablation_10min.json"
+    suffix = "" if args.model == "qlstm" else f"_{args.model}"
+    out_path = ROOT / "results" / "base" / f"ablation_10min{suffix}.json"
     out_path.write_text(json.dumps(out, indent=2))
-    print("\n=== 10-min (hourly-equiv) vs hourly qLSTM ===")
+    print(f"\n=== 10-min (hourly-equiv) vs hourly {args.model} ===")
     print(f"  10-min : RMSE {point['rmse']:.3f}  CRPS {r['crps']:.3f}  PICP {r['picp']:.3f}")
     print(f"  hourly : RMSE {hourly_ref['rmse']:.3f}  CRPS {hourly_ref['crps']:.3f}  PICP {hourly_ref['picp']:.3f}")
     print(f"Saved -> {out_path}")

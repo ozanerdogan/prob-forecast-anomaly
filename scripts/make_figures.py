@@ -41,7 +41,7 @@ from src.baselines.naive_seasonal import naive_seasonal_forecast  # noqa: E402
 from src.data_loader import load_hourly  # noqa: E402
 from src.preprocessing import TARGET, TRAIN_END, VAL_END, chronological_split  # noqa: E402
 
-FIG_DIR = ROOT / "results" / "figures"
+FIG_DIR = ROOT / "results" / "figures" / "old"  # progress-report era figures; phase figures live in results/figures/phase*/
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 plt.rcParams.update({

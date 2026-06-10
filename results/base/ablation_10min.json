@@ -1,0 +1,18 @@
+{
+  "resolution": "10min",
+  "lookback_steps": 1008,
+  "horizon_steps": 144,
+  "eval": "hourly-equivalent (6-step block mean), comparable to qlstm.json",
+  "smoke": false,
+  "10min_hourly_equiv": {
+    "rmse": 2.40326487018162,
+    "crps": 1.0159242114476494,
+    "picp": 0.9216573816155988
+  },
+  "hourly_reference_qlstm": {
+    "rmse": 2.3842137642141363,
+    "crps": 1.015455513978363,
+    "picp": 0.9267641597028784
+  },
+  "note": "quantile-block-averaging narrows the predictive spread, so PICP is only approximately comparable; RMSE is the clean comparison."
+}

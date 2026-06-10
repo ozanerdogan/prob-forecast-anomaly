@@ -596,6 +596,29 @@ def fig_p4_robust_generalize() -> None:
     _save(fig, 4, "robust_generalize.png")
 
 
+def fig_p4_resolution() -> None:
+    p = RES / "base" / "ablation_10min.json"
+    if not p.exists():
+        return
+    d = json.loads(p.read_text())
+    a, h = d["10min_hourly_equiv"], d["hourly_reference_qlstm"]
+    fig, ax = plt.subplots(figsize=(4.6, 3.0))
+    labels = ["saatlik\nqLSTM", "10 dk\n(saatlik-eşdeğer)"]
+    rmses = [h["rmse"], a["rmse"]]
+    # multiseed qLSTM std for the reference band
+    ms = RES / "base" / "multiseed.json"
+    std = json.loads(ms.read_text())["models"]["qlstm"]["rmse_std"] if ms.exists() else 0.013
+    ax.bar(labels, rmses, color=["#1f4e79", "#c0392b"])
+    ax.errorbar([0], [h["rmse"]], yerr=[std], fmt="none", ecolor="k", capsize=5)
+    for i, v in enumerate(rmses):
+        ax.text(i, v + 0.01, f"{v:.3f}", ha="center", fontsize=8)
+    ax.set_ylabel("test RMSE °C")
+    ax.set_ylim(2.3, 2.45)
+    ax.set_title(f"Faz 4 — 10dk çözünürlük kazandırmadı\n(fark +{a['rmse']-h['rmse']:.3f}, seed std ±{std:.3f} içinde)")
+    ax.grid(axis="y", alpha=0.25)
+    _save(fig, 4, "resolution_ablation.png")
+
+
 def fig_p4_robust_plus_cal() -> None:
     p = RES / "base" / "robust_plus_cal.json"
     if not p.exists():
@@ -647,7 +670,7 @@ PHASES = {
         fig_p2_permutation_importance, fig_p2_covariate_full, fig_p2_covariate_independent, fig_p2_input_value, fig_p2_natural_extremes),
     3: (fig_p3_hpo, fig_p3_multiseed, fig_p3_cv, fig_p3_robust_training,
         fig_p3_ensemble_intervals),
-    4: (fig_p4_fault_heatmap, fig_p4_robust_generalize, fig_p4_robust_plus_cal, fig_p4_leaderboard),
+    4: (fig_p4_fault_heatmap, fig_p4_resolution, fig_p4_robust_generalize, fig_p4_robust_plus_cal, fig_p4_leaderboard),
 }
 
 

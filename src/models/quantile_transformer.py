@@ -130,7 +130,15 @@ def train_qtransformer(
     x_va: np.ndarray, y_va: np.ndarray,
     cfg: QTransformerConfig,
     device: str = "cpu",
+    augment_fn=None,
 ) -> tuple[QuantileTransformer, list[dict]]:
+    """Train the quantile Transformer.
+
+    ``augment_fn`` (phase-4 robust training): called per CPU batch as
+    ``augment_fn(xb) -> xb`` BEFORE the device transfer (on-the-fly
+    target-channel anomaly injection). Defaults to None -> bit-identical to
+    the standard path.
+    """
     torch.manual_seed(cfg.seed)
     np.random.seed(cfg.seed)
 
@@ -152,6 +160,8 @@ def train_qtransformer(
         model.train()
         tr_loss, tr_n = 0.0, 0
         for xb, yb in train_loader:
+            if augment_fn is not None:
+                xb = augment_fn(xb)
             xb, yb = xb.to(device), yb.to(device)
             opt.zero_grad()
             pred = model(xb)

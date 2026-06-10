@@ -105,15 +105,22 @@ def train_deepar(
     y_va: np.ndarray, cov_va: np.ndarray,
     cfg: DeepARConfig,
     device: str = "cpu",
+    augment_fn=None,
 ) -> tuple[DeepAR, list[dict]]:
     """Train DeepAR by NLL with teacher forcing.
 
     y_*  : (N, L+H) target sequences (scaled)
     cov_*: (N, L+H, C) covariates (C may be 0)
     Loss is the per-step NLL over steps 1..L+H-1 (input y[t-1] -> predict y[t]).
+
+    ``augment_fn`` (phase-4 robust training): corrupts only the CONTEXT block
+    y[:, :L] of each batch, and the loss is then scored on the HORIZON only --
+    so the model learns to map a contaminated context to the true future
+    rather than to reproduce the injected garbage. None -> standard path.
     """
     torch.manual_seed(cfg.seed)
     np.random.seed(cfg.seed)
+    L = cfg.lookback
 
     model = DeepAR(cfg).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=cfg.lr)
@@ -131,6 +138,9 @@ def train_deepar(
         model.train()
         tr_loss, tr_n = 0.0, 0
         for yb, cb in train_loader:
+            if augment_fn is not None:
+                yb = yb.clone()
+                yb[:, :L] = augment_fn(yb[:, :L])  # corrupt context block only
             yb, cb = yb.to(device), cb.to(device)
             # input target is y shifted right by one step; predict steps 1..T-1
             prev = yb[:, :-1]
@@ -138,7 +148,10 @@ def train_deepar(
             tgt = yb[:, 1:]
             opt.zero_grad()
             dist = model(prev, cov_in)
-            loss = _nll(dist, tgt)
+            # robust: score the horizon only (steps L-1.. = horizon targets),
+            # so injected context values are never used as a target
+            loss = (-dist.log_prob(tgt)[:, L - 1:].mean() if augment_fn is not None
+                    else _nll(dist, tgt))
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
             opt.step()

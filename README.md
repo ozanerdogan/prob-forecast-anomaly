@@ -40,8 +40,8 @@ compare three families:
   spread-temperature calibration** fit on validation and report PICP before/after.
 
 The study is rounded out by a mandatory **ablation** (input richness —
-target-only, leakage-free past-covariate, and the future-leaking oracle upper
-bound — plus lookback, likelihood, quantile-set size), an **error analysis**
+target-only and the leakage-free past-covariate setting — plus lookback,
+likelihood, quantile-set size), an **error analysis**
 (per-horizon, by season and temperature range, worst windows under anomaly, and
 overconfident-failure analysis), and a **visualization** suite.
 
@@ -65,16 +65,16 @@ overconfident-failure analysis), and a **visualization** suite.
 > (p = 0.006).
 
 > **Covariate handling (leakage matters).** DeepAR is autoregressive, so feeding
-> the *contemporaneous* exogenous weather over the horizon leaks the answer — its
-> `deepar_multivariate` ablation variant is therefore an **oracle / perfect-covariate
-> upper bound** (CRPS ≈ 0.08, RMSE ≈ 0.20°C — physically impossible, i.e. leakage),
-> not an operational forecast. The realistic **`deepar_past_covariate`** variant
-> freezes horizon weather at the last observed value (persistence) and keeps only
-> the calendar features as true future; once the leakage is removed the exogenous
-> covariates no longer help DeepAR at the shared budget (and calibration degrades),
-> which shows the apparent multivariate gain was leakage. The quantile-Transformer
-> encoder never reads horizon covariates, so its `qtransformer_multivariate` is
-> already a leakage-free past-covariate setting.
+> the *contemporaneous* exogenous weather over the horizon would leak the answer.
+> We therefore evaluate only the realistic **`deepar_past_covariate`** variant,
+> which freezes horizon weather at the last observed value (persistence) and keeps
+> only the calendar features as true future; once leakage is removed the exogenous
+> covariates no longer help DeepAR at the shared budget (and calibration degrades).
+> (A naive `deepar_multivariate` run that *does* leak the horizon scores a
+> physically-impossible CRPS ≈ 0.08 — the autoregressive analogue of the VPmax→T
+> leakage; it is excluded from the roster and discussed only as a leakage example.)
+> The quantile-Transformer encoder never reads horizon covariates, so its
+> `qtransformer_multivariate` is already a leakage-free past-covariate setting.
 
 ## Phase reports
 

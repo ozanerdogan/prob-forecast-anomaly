@@ -54,14 +54,17 @@ class Variant:
 
 def default_variants(epochs: int = 6) -> list[Variant]:
     v: list[Variant] = []
-    # axis 1: input richness (both models)
-    for model in ("deepar", "qtransformer"):
-        v.append(Variant(f"{model}_target_only", "input", model, use_covariates=False, epochs=epochs))
-        v.append(Variant(f"{model}_multivariate", "input", model, use_covariates=True, epochs=epochs))
-    # leakage-free past-covariate variant (DeepAR only: it is the autoregressive
-    # model that otherwise consumes true future weather in the rollout; the QT
-    # encoder never sees horizon covariates, so qtransformer_multivariate already
-    # is the past-covariate setting).
+    # axis 1: input richness.
+    # target-only for both models.
+    v.append(Variant("deepar_target_only", "input", "deepar", use_covariates=False, epochs=epochs))
+    v.append(Variant("qtransformer_target_only", "input", "qtransformer", use_covariates=False, epochs=epochs))
+    # qtransformer_multivariate is a legitimate, leakage-free gain (the encoder
+    # never reads horizon covariates).
+    v.append(Variant("qtransformer_multivariate", "input", "qtransformer", use_covariates=True, epochs=epochs))
+    # NOTE: deepar_multivariate (the future-leaking "oracle", CRPS ~0.08) is
+    # deliberately NOT a roster/ablation variant -- it is the autoregressive
+    # version of the VPmax->T leakage and belongs only in the leakage
+    # discussion. Its leakage-free correction is kept:
     v.append(Variant("deepar_past_covariate", "input", "deepar",
                      use_covariates=True, freeze_future=True, epochs=epochs))
     # axis 2: lookback (Transformer)

@@ -280,6 +280,31 @@ def fig_p2_covariate_full() -> None:
     _save(fig, 2, "covariate_importance_full.png")
 
 
+def fig_p2_input_value() -> None:
+    p = RES / "base" / "exogenous_only.json"
+    if not p.exists():
+        return
+    d = json.loads(p.read_text())
+    e, r = d["exogenous_only"], d["references"]
+    bars = [
+        ("naive\n(referans)", r.get("naive_seasonal", {}).get("rmse"), "#7f8c8d"),
+        ("sadece T\n(target-only)", r.get("target_only", {}).get("rmse"), "#1f4e79"),
+        ("T YOK\n(exo+proxy)", e["rmse"], "#c0392b"),
+        ("T + 13 cov\n(full)", r.get("full_T_plus_cov", {}).get("rmse"), "#27ae60"),
+    ]
+    bars = [b for b in bars if b[1] is not None]
+    fig, ax = plt.subplots(figsize=(5.6, 3.0))
+    ax.bar([b[0] for b in bars], [b[1] for b in bars], color=[b[2] for b in bars])
+    for i, b in enumerate(bars):
+        ax.text(i, b[1] + 0.03, f"{b[1]:.2f}", ha="center", fontsize=8)
+    ax.set_ylabel("test RMSE °C")
+    ax.set_ylim(2.0, None)
+    ax.set_title("Faz 2+ — Girdinin değeri: saf T kanalı vs sıcaklık-proxy'leri\n"
+                 "('T YOK' Tpot/Tdew/rho gibi proxy'leri İÇERİR → T'yi ikame ediyor)")
+    ax.grid(axis="y", alpha=0.25)
+    _save(fig, 2, "input_value.png")
+
+
 def fig_p2_natural_extremes() -> None:
     p = RES / "base" / "natural_extremes.json"
     if not p.exists():
@@ -499,7 +524,7 @@ def fig_p4_leaderboard() -> None:
 PHASES = {
     1: (fig_p1_picp_vs_intensity, fig_p1_mis_ls4, fig_p1_significance),
     2: (fig_p2_roster, fig_p2_paired_families, fig_p2_raw_robustness,
-        fig_p2_permutation_importance, fig_p2_covariate_full, fig_p2_natural_extremes),
+        fig_p2_permutation_importance, fig_p2_covariate_full, fig_p2_input_value, fig_p2_natural_extremes),
     3: (fig_p3_hpo, fig_p3_multiseed, fig_p3_cv, fig_p3_robust_training,
         fig_p3_ensemble_intervals),
     4: (fig_p4_fault_heatmap, fig_p4_robust_plus_cal, fig_p4_leaderboard),

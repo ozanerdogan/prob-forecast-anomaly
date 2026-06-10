@@ -1,0 +1,24 @@
+{
+  "exogenous_only": {
+    "crps": 1.0052612875295739,
+    "rmse": 2.3183598637027854,
+    "picp": 0.8166202414113277,
+    "n_input_channels": 17
+  },
+  "references": {
+    "target_only": {
+      "crps": 1.0220161001030914,
+      "rmse": 2.4304359384593623,
+      "picp": 0.9048282265552461
+    },
+    "full_T_plus_cov": {
+      "crps": 0.9840528744934074,
+      "rmse": 2.257870605437487
+    },
+    "naive_seasonal": {
+      "rmse": 3.2104438674263016
+    }
+  },
+  "interpretation": "compare exogenous_only vs target_only: if close, past T is redundant given the other sensors; if far, T dominates",
+  "smoke": false
+}

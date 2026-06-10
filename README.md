@@ -144,8 +144,14 @@ python scripts/run_anomaly_eval.py   # also dumps frozen forecasts -> results/pr
 python scripts/run_ablation.py
 python scripts/run_error_analysis.py
 
-# 5b. Tree-family probabilistic model (LightGBM point + quantile)
-python scripts/run_lgbm.py
+# 5b. Phase-2 model roster (paired det/prob families) + multivariate base
+python scripts/run_lgbm.py            # tree: LightGBM point + quantile
+python scripts/run_qrf.py             # tree-prob second opinion (QRF)
+python scripts/run_qlstm.py           # recurrent: quantile-LSTM twin
+python scripts/run_gru.py             # recurrent: GRU point twin
+python scripts/run_dlinear.py         # linear: DLinear + qDLinear twins
+python scripts/run_qtransformer_multi.py   # multivariate QT base + permutation importance
+python scripts/probe_deepar_covariates.py  # why past-covariates hurt DeepAR
 
 # 5c. Stage-2 calibration -- reads the frozen predictions, never runs a model
 python scripts/calibrate_static.py
@@ -154,8 +160,9 @@ python scripts/calibrate_aci.py
 python scripts/calibrate_input_tau.py
 python scripts/calibrate_detect_clean.py
 
-# 5d. Significance tests on the shared window grid (DM + paired bootstrap)
+# 5d. Significance tests + natural sharp-transition slice (no injection)
 python scripts/run_significance.py
+python scripts/run_natural_extremes.py
 
 # 6. Figures (Phase 1 PDFs + Phase 2 PNGs)
 python scripts/make_figures.py --phase all

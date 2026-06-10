@@ -45,7 +45,8 @@ def main() -> None:
 
     preds: dict[str, np.ndarray] = {}
     y_true = None
-    for model in ("lstm", "naive_seasonal", "deepar", "qtransformer", "lgbm"):
+    for model in ("lstm", "naive_seasonal", "deepar", "qtransformer", "lgbm",
+                  "gru", "dlinear", "qlstm", "qdlinear", "qrf", "qtransformer_multi"):
         p = prediction_path(pred_dir, model, "test", "clean")
         if not p.exists():
             continue

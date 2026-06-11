@@ -149,13 +149,25 @@ def qtransformer_context_grad(
     model: QuantileTransformer, x: np.ndarray, y_true: np.ndarray, quantiles: np.ndarray
 ) -> np.ndarray:
     """Gradient of the pinball loss wrt the target channel (column 0)."""
+    return qtransformer_full_grad(model, x, y_true, quantiles)[:, :, 0]
+
+
+def qtransformer_full_grad(
+    model: QuantileTransformer, x: np.ndarray, y_true: np.ndarray, quantiles: np.ndarray
+) -> np.ndarray:
+    """Gradient of the pinball loss wrt EVERY input channel (N, L, C).
+
+    The target-channel slice feeds the standard white-box FGSM; the full
+    tensor enables the multi-channel attack (Asama-2) where covariate
+    channels are perturbed too.
+    """
     model.eval()
     xt = torch.tensor(x, device=DEVICE, requires_grad=True)
     y = torch.tensor(y_true, device=DEVICE)
     q = torch.tensor(quantiles, device=DEVICE, dtype=torch.float32)
     loss = pinball_loss_torch(model(xt), y, q)
     loss.backward()
-    return xt.grad.detach().cpu().numpy()[:, :, 0]
+    return xt.grad.detach().cpu().numpy()
 
 
 def deepar_context_grad(

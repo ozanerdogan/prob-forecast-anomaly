@@ -134,6 +134,32 @@ def linf_fgsm(
     return out.astype(np.float32), float(np.mean(eps))
 
 
+def linf_fgsm_multichannel(
+    x: np.ndarray, grad: np.ndarray, intensity: float,
+    channel_mask=None, window: int = 24,
+) -> tuple[np.ndarray, float]:
+    """l-infinity FGSM over EVERY (attackable) input channel of (N, L, C).
+
+    Same construction as ``linf_fgsm`` but the radius is computed
+    channel-wise — ``intensity * that channel's local sigma`` — so covariates
+    are perturbed in proportion to their own variability rather than the
+    target's. ``channel_mask`` (bool per channel) limits the attack to
+    physically attackable channels: calendar features are deterministic
+    (an attacker cannot change the date), so they must stay clean.
+    """
+    x = np.asarray(x, dtype=np.float32)
+    grad = np.asarray(grad)
+    out = x.copy()
+    mask = (np.ones(x.shape[2], dtype=bool) if channel_mask is None
+            else np.asarray(channel_mask, dtype=bool))
+    mags = []
+    for c in np.flatnonzero(mask):
+        eps = (intensity * _window_scale(x[:, :, c], window))[:, None]
+        out[:, :, c] = x[:, :, c] + eps * np.sign(grad[:, :, c])
+        mags.append(float(np.mean(eps)))
+    return out, float(np.mean(mags)) if mags else 0.0
+
+
 def inject_flatline(
     ctx: np.ndarray, intensity: float, rng: np.random.Generator, window: int = 24
 ) -> tuple[np.ndarray, float]:

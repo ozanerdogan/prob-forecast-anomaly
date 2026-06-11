@@ -39,12 +39,18 @@ from src.seq_data import freeze_future_covariates, make_ar_windows, make_encoder
 ALPHA = 0.1
 
 
+# Official multivariate covset: the 5 genuinely independent sensors (the
+# T-derived channels are leakage; see run_exogenous_only.py / data/README.md).
+INDEPENDENT_COVARIATES = ("p (mbar)", "rh (%)", "wv (m/s)", "max. wv (m/s)", "wd (deg)")
+
+
 @dataclass
 class Variant:
     name: str
     axis: str
     model: str  # "deepar" | "qtransformer"
     use_covariates: bool = False
+    covariate_cols: tuple[str, ...] | None = None  # None -> features.DEFAULT_COVARIATES
     lookback: int = 168
     likelihood: str = "gaussian"
     quantiles: tuple[float, ...] = QUANTILES_7
@@ -60,13 +66,16 @@ def default_variants(epochs: int = 6) -> list[Variant]:
     v.append(Variant("qtransformer_target_only", "input", "qtransformer", use_covariates=False, epochs=epochs))
     # qtransformer_multivariate is a legitimate, leakage-free gain (the encoder
     # never reads horizon covariates).
-    v.append(Variant("qtransformer_multivariate", "input", "qtransformer", use_covariates=True, epochs=epochs))
+    v.append(Variant("qtransformer_multivariate", "input", "qtransformer",
+                     use_covariates=True, covariate_cols=INDEPENDENT_COVARIATES,
+                     epochs=epochs))
     # NOTE: deepar_multivariate (the future-leaking "oracle", CRPS ~0.08) is
     # deliberately NOT a roster/ablation variant -- it is the autoregressive
     # version of the VPmax->T leakage and belongs only in the leakage
     # discussion. Its leakage-free correction is kept:
     v.append(Variant("deepar_past_covariate", "input", "deepar",
-                     use_covariates=True, freeze_future=True, epochs=epochs))
+                     use_covariates=True, covariate_cols=INDEPENDENT_COVARIATES,
+                     freeze_future=True, epochs=epochs))
     # axis 2: lookback (Transformer)
     for L in (72, 168, 336):
         v.append(Variant(f"qt_lookback_{L}", "lookback", "qtransformer", lookback=L, epochs=epochs))
@@ -81,7 +90,9 @@ def default_variants(epochs: int = 6) -> list[Variant]:
 
 def run_variant(spec: Variant) -> dict:
     """Train and evaluate a single ablation variant on the clean test set."""
-    data = E.prepare(use_covariates=spec.use_covariates)
+    data = E.prepare(use_covariates=spec.use_covariates,
+                     covariate_cols=(list(spec.covariate_cols)
+                                     if spec.covariate_cols else None))
     quantiles = np.array(spec.quantiles)
     H = 24
     inv = lambda a: data.scaler.inverse_target(a, TARGET)  # noqa: E731

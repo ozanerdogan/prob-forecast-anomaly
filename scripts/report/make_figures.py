@@ -351,7 +351,8 @@ def fig_covariate_independent() -> None:
             cs.append("#7f8c8d")
         else:
             cs.append("#27ae60")       # independent sensor
-    fig, ax = plt.subplots(figsize=(6.4, 3.8))
+    # sized for half-text-width placement next to input_value
+    fig, ax = plt.subplots(figsize=(4.6, 3.5))
     ax.barh(names, vals, color=cs)
     for i, v in enumerate(vals):
         if v > 0.02:
@@ -381,7 +382,8 @@ def fig_input_value() -> None:
         ("T + all 13\ncovariates", r.get("full_T_plus_cov", {}).get("rmse"), "#27ae60"),
     ]
     bars = [b for b in bars if b[1] is not None]
-    fig, ax = plt.subplots(figsize=(6.8, 3.2))
+    # sized for half-text-width placement next to covariate_importance_independent
+    fig, ax = plt.subplots(figsize=(4.6, 3.5))
     ax.bar([b[0] for b in bars], [b[1] for b in bars], color=[b[2] for b in bars])
     for i, b in enumerate(bars):
         ax.text(i, b[1] + 0.03, f"{b[1]:.2f}", ha="center", fontsize=8)
@@ -392,7 +394,7 @@ def fig_input_value() -> None:
     fig.suptitle("Temperature information is indispensable\n"
                  "without T-proxies (red) the model falls below naive; "
                  "the saturation-vapor-pressure leak brings T back", y=1.08)
-    ax.tick_params(axis="x", labelsize=7)
+    ax.tick_params(axis="x", labelsize=6.2)
     ax.grid(axis="y", alpha=0.25)
     _save(fig, "input_value.png")
 
@@ -765,9 +767,8 @@ def fig_robust_plus_cal() -> None:
                ("robust_raw", "#e67e22", "robust raw"),
                ("robust_aci", "#27ae60", "robust+ACI")]
     fams = rc.get("families", {})
-    # stacked layout: the report places this next to another figure, so the
-    # two sub-panels go on top of each other instead of side by side.
-    fig, (ax, ax2) = plt.subplots(2, 1, figsize=(5.2, 5.6))
+    # side-by-side layout: the report shows this as one full-width figure
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.4, 3.3))
 
     # top: qlstm intensity sweep (the canonical four corners)
     x = np.arange(len(settings))

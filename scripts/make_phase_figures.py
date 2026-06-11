@@ -344,6 +344,52 @@ def fig_p2_input_value() -> None:
     _save(fig, 2, "input_value.png")
 
 
+def fig_p2_error_breakdowns() -> None:
+    p = RES / "base" / "error_tables_full.json"
+    if not p.exists():
+        return
+    d = json.loads(p.read_text())
+    # show the spread across the roster as 3 panels: per-horizon curves,
+    # by-temperature heatmap, by-season heatmap.
+    models = sorted(d["per_horizon"], key=lambda m: np.mean(d["per_horizon"][m]))
+    fig, axes = plt.subplots(1, 3, figsize=(12.5, 3.6))
+
+    # panel 1: per-horizon curves (highlight best + worst, grey the rest)
+    ax = axes[0]
+    for m in d["per_horizon"]:
+        ph = d["per_horizon"][m]
+        hl = m in (models[0], models[-1])
+        ax.plot(range(1, len(ph) + 1), ph, lw=1.6 if hl else 0.7,
+                color={"qtransformer_multi": "#27ae60"}.get(m, "#c0392b" if m == models[-1] else "#bbb"),
+                label=m if hl else None, zorder=3 if hl else 1)
+    ax.set_xlabel("tahmin adımı (saat)")
+    ax.set_ylabel("RMSE °C")
+    ax.set_title("Per-horizon (tüm kadro)")
+    ax.legend(frameon=False, fontsize=7)
+    ax.grid(alpha=0.25)
+
+    # panel 2: by-temperature heatmap
+    temps = d["temp_order"]
+    mat = np.array([[d["by_temperature"][m].get(t, np.nan) for t in temps] for m in models])
+    im = axes[1].imshow(mat, aspect="auto", cmap="YlOrRd")
+    axes[1].set_xticks(range(len(temps))); axes[1].set_xticklabels(temps, fontsize=7)
+    axes[1].set_yticks(range(len(models))); axes[1].set_yticklabels(models, fontsize=6)
+    axes[1].set_title("Sıcaklık aralığı RMSE")
+    fig.colorbar(im, ax=axes[1], fraction=0.046)
+
+    # panel 3: by-season heatmap
+    seas = d["season_order"]
+    mat2 = np.array([[d["by_season"][m].get(s, np.nan) for s in seas] for m in models])
+    im2 = axes[2].imshow(mat2, aspect="auto", cmap="YlGnBu")
+    axes[2].set_xticks(range(len(seas))); axes[2].set_xticklabels(seas, fontsize=7)
+    axes[2].set_yticks(range(len(models))); axes[2].set_yticklabels(models, fontsize=6)
+    axes[2].set_title("Mevsim RMSE")
+    fig.colorbar(im2, ax=axes[2], fraction=0.046)
+
+    fig.suptitle("Faz 2 — Tüm kadro hata kırılımı (per-horizon · sıcaklık · mevsim)", y=1.02)
+    _save(fig, 2, "error_breakdowns_full.png")
+
+
 def fig_p2_natural_extremes() -> None:
     p = RES / "base" / "natural_extremes.json"
     if not p.exists():
@@ -667,7 +713,7 @@ def fig_p4_leaderboard() -> None:
 PHASES = {
     1: (fig_p1_picp_vs_intensity, fig_p1_mis_ls4, fig_p1_significance),
     2: (fig_p2_roster, fig_p2_paired_families, fig_p2_raw_robustness,
-        fig_p2_permutation_importance, fig_p2_covariate_full, fig_p2_covariate_independent, fig_p2_input_value, fig_p2_natural_extremes),
+        fig_p2_permutation_importance, fig_p2_covariate_full, fig_p2_covariate_independent, fig_p2_input_value, fig_p2_error_breakdowns, fig_p2_natural_extremes),
     3: (fig_p3_hpo, fig_p3_multiseed, fig_p3_cv, fig_p3_robust_training,
         fig_p3_ensemble_intervals),
     4: (fig_p4_fault_heatmap, fig_p4_resolution, fig_p4_robust_generalize, fig_p4_robust_plus_cal, fig_p4_leaderboard),

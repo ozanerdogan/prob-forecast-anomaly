@@ -75,7 +75,7 @@ def fig_p1_picp_vs_intensity() -> None:
                     ys.append(s["before" if method is None else "after"]["picp"])
                 return ys
 
-            ax.plot(xs, series(None), "o-", color=METHOD_COLOR["raw"], label="onarımsız")
+            ax.plot(xs, series(None), "o-", color=METHOD_COLOR["raw"], label="uncalibrated")
             for m in METHODS:
                 if _load_cal(m, model):
                     ax.plot(xs, series(m), "o-", color=METHOD_COLOR[m],
@@ -84,18 +84,18 @@ def fig_p1_picp_vs_intensity() -> None:
             ax.set_title(f"{model} — {kind.replace('_', ' ')}")
             ax.set_ylim(0, 1.0)
             if i == len(kinds) - 1:
-                ax.set_xlabel("şiddet (× yerel σ)")
+                ax.set_xlabel("intensity (× local σ)")
             if j == 0:
-                ax.set_ylabel("PICP (hedef 0.90)")
+                ax.set_ylabel("PICP (target 0.90)")
     axes[0, 0].legend(frameon=False, loc="lower left")
-    fig.suptitle("Faz 1 — Kapsama vs bozulma şiddeti: statik onarım çöküyor, adaptif tutunuyor", y=1.01)
+    fig.suptitle("Phase 1 — Coverage vs corruption intensity: static repair collapses, adaptive holds", y=1.01)
     _save(fig, 1, "calibration_picp_vs_intensity.png")
 
 
 def fig_p1_mis_ls4() -> None:
     models = ("deepar", "qtransformer")
     fig, ax = plt.subplots(figsize=(5.6, 2.8))
-    labels = ["onarımsız"] + [METHOD_LABEL[m] for m in METHODS]
+    labels = ["uncalibrated"] + [METHOD_LABEL[m] for m in METHODS]
     width = 0.38
     for k, model in enumerate(models):
         vals = []
@@ -111,7 +111,7 @@ def fig_p1_mis_ls4() -> None:
     ax.set_xticks(np.arange(len(labels)))
     ax.set_xticklabels(labels, rotation=12)
     ax.set_ylabel("MIS (level shift 4×)")
-    ax.set_title("Faz 1 — Aralık skoru: adaptif onarım MIS'i yarılıyor")
+    ax.set_title("Phase 1 — Interval score: adaptive repair halves MIS")
     ax.legend(frameon=False)
     ax.grid(axis="y", alpha=0.25)
     _save(fig, 1, "calibration_mis_ls4.png")
@@ -139,7 +139,7 @@ def fig_p1_significance() -> None:
     ax.set_yticks(range(len(pairs)))
     ax.set_yticklabels([l for _, l in pairs])
     ax.set_xlabel("ΔRMSE (negatif = soldaki daha iyi), %95 bootstrap CI")
-    ax.set_title("Faz 1 — Anlamlılık: LSTM≈QT beraberlik; ensemble kazancı gerçek")
+    ax.set_title("Phase 1 — Significance: LSTM≈QT tie; ensemble gain is real")
     _save(fig, 1, "significance_headline.png")
 
 
@@ -175,8 +175,8 @@ def fig_p2_roster() -> None:
     names = [r[0] for r in rows]
     axes[0].barh(names, [r[1] for r in rows],
                  color=[FAM_COLOR[r[3]] for r in rows])
-    axes[0].set_xlabel("RMSE °C (nokta / medyan)")
-    axes[0].set_title("Kadro — nokta doğruluğu")
+    axes[0].set_xlabel("RMSE °C (point / median)")
+    axes[0].set_title("Roster — point accuracy")
     axes[0].invert_yaxis()
     prob = [r for r in rows if r[2] is not None]
     prob.sort(key=lambda r: r[2])
@@ -185,7 +185,7 @@ def fig_p2_roster() -> None:
     axes[1].set_xlabel("CRPS")
     axes[1].set_title("Probabilistik — CRPS")
     axes[1].invert_yaxis()
-    fig.suptitle("Faz 2 — 13 modellik kadro (renk = aile)", y=1.02)
+    fig.suptitle("Phase 2 — 13-model roster (colour = family)", y=1.02)
     _save(fig, 2, "roster_overview.png")
 
 
@@ -209,7 +209,7 @@ def fig_p2_paired_families() -> None:
     ax.set_xticklabels([p[2] for p in pairs])
     ax.set_ylabel("RMSE °C")
     ax.set_ylim(2.0, None)
-    ax.set_title("Faz 2 — Eşleştirilmiş aileler: pinball başlığı nokta doğruluğuna mal olmuyor")
+    ax.set_title("Phase 2 — Paired families: the pinball head costs no point accuracy")
     ax.legend(frameon=False)
     ax.grid(axis="y", alpha=0.25)
     _save(fig, 2, "paired_families.png")
@@ -231,8 +231,8 @@ def fig_p2_raw_robustness() -> None:
     ax.bar([names[i] for i in order], [vals[i] for i in order],
            color=[colors[i] for i in order])
     ax.axhline(0.9, color="k", lw=0.7, ls=":")
-    ax.set_ylabel("onarımsız PICP (level shift 4×)")
-    ax.set_title("Faz 2 — Ham dayanıklılık: tree'ler şifti 'takip etmiyor'")
+    ax.set_ylabel("uncalibrated PICP (level shift 4×)")
+    ax.set_title("Phase 2 — Raw robustness: trees do not 'follow' the shift")
     ax.tick_params(axis="x", rotation=20)
     ax.grid(axis="y", alpha=0.25)
     _save(fig, 2, "raw_robustness_ls4.png")
@@ -247,8 +247,8 @@ def fig_p2_permutation_importance() -> None:
                   key=lambda kv: kv[1]["delta_crps"])
     fig, ax = plt.subplots(figsize=(5.2, 2.8))
     ax.barh([k for k, _ in rows], [v["delta_crps"] for _, v in rows], color="#1f4e79")
-    ax.set_xlabel("ΔCRPS (kanal pencereler-arası karıştırılınca)")
-    ax.set_title("Faz 2 — Permütasyon önemi (QT-multi, test)")
+    ax.set_xlabel("ΔCRPS (channel shuffled across windows)")
+    ax.set_title("Phase 2 — Permutation importance (QT-multi, test)")
     ax.grid(axis="x", alpha=0.25)
     _save(fig, 2, "permutation_importance.png")
 
@@ -273,9 +273,9 @@ def fig_p2_covariate_full() -> None:
             cs.append("#27ae60")
     fig, ax = plt.subplots(figsize=(6.4, 4.4))
     ax.barh(cols, vals, color=cs)
-    ax.set_xlabel("ΔCRPS (kanal pencereler-arası karıştırılınca)")
-    ax.set_title("Faz 2+ — 13 covariate tam önem tablosu (QT, test)\n"
-                 "kırmızı = sıcaklık-türevi (yarı-sızıntı) · yeşil = bağımsız sensör · gri = takvim")
+    ax.set_xlabel("ΔCRPS (channel shuffled across windows)")
+    ax.set_title("Phase 2+ — Full 13-covariate importance (QT, test)\n"
+                 "red = temperature-derived (partial leakage) · green = independent sensor · grey = calendar")
     ax.grid(axis="x", alpha=0.25)
     _save(fig, 2, "covariate_importance_full.png")
 
@@ -307,9 +307,9 @@ def fig_p2_covariate_independent() -> None:
     for i, v in enumerate(vals):
         if v > 0.02:
             ax.text(v + 0.05, i, f"{v:.2f}", va="center", fontsize=7)
-    ax.set_xlabel("ΔCRPS (kanal pencereler-arası karıştırılınca)")
-    ax.set_title("Faz 2+ — Bağımsız covariate önemi (LEAKAGE'SIZ)\n"
-                 "kırmızı = hedef T (baskın) · yeşil = bağımsız sensör · gri = takvim")
+    ax.set_xlabel("ΔCRPS (channel shuffled across windows)")
+    ax.set_title("Phase 2+ — Independent covariate importance (LEAKAGE-FREE)\n"
+                 "red = target T (dominant) · green = independent sensor · grey = calendar")
     ax.grid(axis="x", alpha=0.25)
     _save(fig, 2, "covariate_importance_independent.png")
 
@@ -337,8 +337,8 @@ def fig_p2_input_value() -> None:
     ax.axhline(r.get("naive_seasonal", {}).get("rmse", 3.21), color="k", lw=0.7, ls=":")
     ax.set_ylabel("test RMSE °C")
     ax.set_ylim(2.0, None)
-    ax.set_title("Faz 2+ — Sıcaklık bilgisi vazgeçilmez\n"
-                 "T-proxy'siz (kırmızı) naive'in BİLE altında; VPmax sızıntısı T'yi geri getiriyor")
+    ax.set_title("Phase 2+ — Temperature information is indispensable\n"
+                 "without T-proxies (red) it falls BELOW naive; the VPmax leak brings T back")
     ax.tick_params(axis="x", labelsize=7)
     ax.grid(axis="y", alpha=0.25)
     _save(fig, 2, "input_value.png")
@@ -362,9 +362,9 @@ def fig_p2_error_breakdowns() -> None:
         ax.plot(range(1, len(ph) + 1), ph, lw=1.6 if hl else 0.7,
                 color={"qtransformer_multi": "#27ae60"}.get(m, "#c0392b" if m == models[-1] else "#bbb"),
                 label=m if hl else None, zorder=3 if hl else 1)
-    ax.set_xlabel("tahmin adımı (saat)")
+    ax.set_xlabel("forecast step (hours)")
     ax.set_ylabel("RMSE °C")
-    ax.set_title("Per-horizon (tüm kadro)")
+    ax.set_title("Per-horizon (full roster)")
     ax.legend(frameon=False, fontsize=7)
     ax.grid(alpha=0.25)
 
@@ -374,7 +374,7 @@ def fig_p2_error_breakdowns() -> None:
     im = axes[1].imshow(mat, aspect="auto", cmap="YlOrRd")
     axes[1].set_xticks(range(len(temps))); axes[1].set_xticklabels(temps, fontsize=7)
     axes[1].set_yticks(range(len(models))); axes[1].set_yticklabels(models, fontsize=6)
-    axes[1].set_title("Sıcaklık aralığı RMSE")
+    axes[1].set_title("RMSE by temperature range")
     fig.colorbar(im, ax=axes[1], fraction=0.046)
 
     # panel 3: by-season heatmap
@@ -383,10 +383,10 @@ def fig_p2_error_breakdowns() -> None:
     im2 = axes[2].imshow(mat2, aspect="auto", cmap="YlGnBu")
     axes[2].set_xticks(range(len(seas))); axes[2].set_xticklabels(seas, fontsize=7)
     axes[2].set_yticks(range(len(models))); axes[2].set_yticklabels(models, fontsize=6)
-    axes[2].set_title("Mevsim RMSE")
+    axes[2].set_title("RMSE by season")
     fig.colorbar(im2, ax=axes[2], fraction=0.046)
 
-    fig.suptitle("Faz 2 — Tüm kadro hata kırılımı (per-horizon · sıcaklık · mevsim)", y=1.02)
+    fig.suptitle("Phase 2 — Full-roster error breakdown (per-horizon · temperature · season)", y=1.02)
     _save(fig, 2, "error_breakdowns_full.png")
 
 
@@ -403,14 +403,14 @@ def fig_p2_natural_extremes() -> None:
         picps.append(block["input_tau"]["sharp_drop"]["picp"])
     x = np.arange(len(names))
     fig, ax = plt.subplots(figsize=(6.4, 3.0))
-    ax.bar(x - 0.19, full_w, 0.38, label="tüm test", color="#7f8c8d")
-    ax.bar(x + 0.19, drop_w, 0.38, label="soğuk cephe dilimi", color="#1f4e79")
+    ax.bar(x - 0.19, full_w, 0.38, label="full test", color="#7f8c8d")
+    ax.bar(x + 0.19, drop_w, 0.38, label="cold-front slice", color="#1f4e79")
     for i, pi in enumerate(picps):
         ax.text(i + 0.19, drop_w[i] + 0.15, f"{pi:.2f}", ha="center", fontsize=7)
     ax.set_xticks(x)
     ax.set_xticklabels(names, rotation=20)
-    ax.set_ylabel("MPIW °C (girdi-koşullu τ)")
-    ax.set_title("Faz 2 — Doğal uçlarda false-alarm maliyeti düşük (etiket = dilim PICP)")
+    ax.set_ylabel("MPIW °C (input-conditional τ)")
+    ax.set_title("Phase 2 — Low false-alarm cost on natural extremes (label = slice PICP)")
     ax.legend(frameon=False)
     ax.grid(axis="y", alpha=0.25)
     _save(fig, 2, "natural_extremes_falsealarm.png")
@@ -429,13 +429,13 @@ def fig_p3_hpo() -> None:
         b = hpo["models"][m]
         metric = "test_crps" if b.get("test_crps_default") is not None else "test_rmse"
         ax.bar(i - width / 2, b[f"{metric}_default"], width, color="#7f8c8d",
-               label="varsayılan" if i == 0 else None)
+               label="default" if i == 0 else None)
         ax.bar(i + width / 2, b[f"{metric}_best"], width, color="#1f4e79",
                label="HPO" if i == 0 else None)
     ax.set_xticks(range(len(models)))
     ax.set_xticklabels(models)
     ax.set_ylabel("test CRPS / RMSE")
-    ax.set_title("Faz 3 — HPO: varsayılan vs optimize (seçim yalnız validation'da)")
+    ax.set_title("Phase 3 — HPO: default vs optimised (selection on validation only)")
     ax.legend(frameon=False)
     ax.grid(axis="y", alpha=0.25)
     _save(fig, 3, "hpo_default_vs_best.png")
@@ -456,7 +456,7 @@ def fig_p3_multiseed() -> None:
     ax.set_xticks(range(len(names)))
     ax.set_xticklabels(names, rotation=15)
     ax.set_ylabel("RMSE °C (3 seed)")
-    ax.set_title("Faz 3 — Seed duyarlılığı (ort ± std; noktalar = tekil seedler)")
+    ax.set_title("Phase 3 — Seed sensitivity (mean ± std; dots = individual seeds)")
     ax.grid(axis="y", alpha=0.25)
     _save(fig, 3, "multiseed_rmse.png")
 
@@ -471,9 +471,9 @@ def fig_p3_cv() -> None:
         years = sorted(block["folds"])
         ax.plot([int(y) for y in years], [block["folds"][y]["rmse"] for y in years],
                 "o-", label=m)
-    ax.set_xlabel("test yılı (genişleyen train)")
+    ax.set_xlabel("test year (expanding train)")
     ax.set_ylabel("RMSE °C")
-    ax.set_title("Faz 3 — Yıl-bazlı forward-chaining CV (fold varyansı)")
+    ax.set_title("Phase 3 — Year-based forward-chaining CV (fold variance)")
     ax.legend(frameon=False)
     ax.grid(alpha=0.25)
     _save(fig, 3, "cv_fold_variance.png")
@@ -490,12 +490,12 @@ def fig_p3_robust_training() -> None:
     ax.bar(x - 0.19, [rc["normal"][s]["picp"] for s in settings], 0.38,
            label="normal qLSTM", color="#7f8c8d")
     ax.bar(x + 0.19, [rc["robust"][s]["picp"] for s in settings], 0.38,
-           label="robust-eğitimli qLSTM", color="#27ae60")
+           label="robust-trained qLSTM", color="#27ae60")
     ax.axhline(0.9, color="k", lw=0.7, ls=":")
     ax.set_xticks(x)
     ax.set_xticklabels([s.replace("_", "\n") for s in settings], fontsize=7)
-    ax.set_ylabel("onarımsız PICP")
-    ax.set_title("Faz 3 — Robust (anomali-augmente) eğitim: normal vs optimize")
+    ax.set_ylabel("uncalibrated PICP")
+    ax.set_title("Phase 3 — Robust (anomaly-augmented) training: normal vs optimised")
     ax.legend(frameon=False)
     ax.grid(axis="y", alpha=0.25)
     _save(fig, 3, "robust_training_picp.png")
@@ -516,9 +516,9 @@ def fig_p3_horizon() -> None:
                     textcoords="offset points", xytext=(0, 6), fontsize=7, ha="center")
     ax.axvline(24, color="grey", lw=0.7, ls=":")
     ax.set_xticks(x)
-    ax.set_xlabel("tahmin ufku (saat)")
+    ax.set_xlabel("forecast horizon (hours)")
     ax.set_ylabel("hata")
-    ax.set_title("Faz 3 — Horizon ablation: hata ufukla büyüyor (24h seçimi)")
+    ax.set_title("Phase 3 — Horizon ablation: error grows with horizon (24h choice)")
     ax.legend(frameon=False)
     ax.grid(alpha=0.25)
     _save(fig, 3, "horizon_ablation.png")
@@ -546,7 +546,7 @@ def fig_p3_extreme_quantiles() -> None:
     ax.set_xticklabels(["%90", "%95", "%98"])
     ax.set_ylabel("PICP")
     ax.set_ylim(0.7, 1.0)
-    ax.set_title("Faz 3 — Ekstrem quantile: %90/95/98 aralık (tam + uç deciller)")
+    ax.set_title("Phase 3 — Extreme quantiles: 90/95/98% intervals (full + extreme deciles)")
     ax.legend(frameon=False, fontsize=7)
     ax.grid(axis="y", alpha=0.25)
     _save(fig, 3, "extreme_quantiles.png")
@@ -565,8 +565,8 @@ def fig_p3_ensemble_intervals() -> None:
     ax.barh(names, [r[1] for r in rows], color=colors)
     for i, r in enumerate(rows):
         ax.text(r[1] + 0.002, i, f"PICP {r[2]:.3f}", va="center", fontsize=7)
-    ax.set_xlabel("pinball ≈ CRPS/2 (temiz test) — kırmızı = ensemble")
-    ax.set_title("Faz 3 — Aralık birleştirme: ensemble en güçlü üyeyi geçemiyor")
+    ax.set_xlabel("pinball ≈ CRPS/2 (clean test) — red = ensemble")
+    ax.set_title("Phase 3 — Interval combination: ensemble cannot beat the strongest member")
     ax.grid(axis="x", alpha=0.25)
     _save(fig, 3, "ensemble_intervals.png")
 
@@ -607,8 +607,8 @@ def fig_p4_fault_heatmap() -> None:
             if not np.isnan(mat[i, j]):
                 ax.text(j, i, f"{mat[i,j]:.2f}", ha="center", va="center", fontsize=7)
     ax.axhline(2.5, color="k", lw=1.2)  # separates v1 (top 3) from v2 faults
-    ax.set_title(f"Faz 4 — v2 arıza kataloğu, ham PICP ({model})\n(üst 3 = v1, alt 5 = yeni)")
-    fig.colorbar(im, ax=ax, fraction=0.046, label="PICP (hedef 0.90)")
+    ax.set_title(f"Phase 4 — v2 fault catalog, raw PICP ({model})\n(top 3 = v1, bottom 5 = new)")
+    fig.colorbar(im, ax=ax, fraction=0.046, label="PICP (target 0.90)")
     _save(fig, 4, "fault_catalog_heatmap.png")
 
 
@@ -635,8 +635,8 @@ def fig_p4_robust_generalize() -> None:
     ax.axhline(0.9, color="k", lw=0.7, ls=":")
     ax.set_xticks(x)
     ax.set_xticklabels([s.replace("_", "\n") for s in settings], fontsize=7)
-    ax.set_ylabel("ham PICP")
-    ax.set_title("Faz 4 — Robust eğitim 3 mimaride genel (açık=normal, koyu=robust)")
+    ax.set_ylabel("raw PICP")
+    ax.set_title("Phase 4 — Robust training generalises across 3 architectures (light=normal, dark=robust)")
     ax.legend(frameon=False, fontsize=7, ncol=3)
     ax.grid(axis="y", alpha=0.25)
     _save(fig, 4, "robust_generalize.png")
@@ -649,7 +649,7 @@ def fig_p4_resolution() -> None:
     d = json.loads(p.read_text())
     a, h = d["10min_hourly_equiv"], d["hourly_reference_qlstm"]
     fig, ax = plt.subplots(figsize=(4.6, 3.0))
-    labels = ["saatlik\nqLSTM", "10 dk\n(saatlik-eşdeğer)"]
+    labels = ["hourly\nqLSTM", "10-min\n(hourly-equivalent)"]
     rmses = [h["rmse"], a["rmse"]]
     # multiseed qLSTM std for the reference band
     ms = RES / "base" / "multiseed.json"
@@ -660,7 +660,7 @@ def fig_p4_resolution() -> None:
         ax.text(i, v + 0.01, f"{v:.3f}", ha="center", fontsize=8)
     ax.set_ylabel("test RMSE °C")
     ax.set_ylim(2.3, 2.45)
-    ax.set_title(f"Faz 4 — 10dk çözünürlük kazandırmadı\n(fark +{a['rmse']-h['rmse']:.3f}, seed std ±{std:.3f} içinde)")
+    ax.set_title(f"Phase 4 — 10-min resolution does not help\n(diff +{a['rmse']-h['rmse']:.3f}, within seed std ±{std:.3f})")
     ax.grid(axis="y", alpha=0.25)
     _save(fig, 4, "resolution_ablation.png")
 
@@ -686,7 +686,7 @@ def fig_p4_robust_plus_cal() -> None:
     ax.set_xticks(x)
     ax.set_xticklabels([s.replace("_", "\n") for s in settings], fontsize=7)
     ax.set_ylabel("PICP")
-    ax.set_title("Faz 4 — Model-tarafı (robust) × aralık-tarafı (ACI): 4 köşe")
+    ax.set_title("Phase 4 — Model-side (robust) × interval-side (ACI): 4 corners")
     ax.legend(frameon=False, ncol=2, fontsize=7)
     ax.grid(axis="y", alpha=0.25)
     _save(fig, 4, "robust_plus_cal.png")
@@ -704,8 +704,8 @@ def fig_p4_leaderboard() -> None:
     for i, (_, r) in enumerate(rows):
         if "picp" in r:
             ax.text(r["rmse"] + 0.02, i, f"PICP {r['picp']:.2f}", va="center", fontsize=6.5)
-    ax.set_xlabel("temiz test RMSE °C (nokta / medyan)")
-    ax.set_title("Faz 4 — Tam kadro temiz-test sıralaması")
+    ax.set_xlabel("clean-test RMSE °C (point / median)")
+    ax.set_title("Phase 4 — Full-roster clean-test ranking")
     ax.invert_yaxis()
     _save(fig, 4, "final_leaderboard.png")
 

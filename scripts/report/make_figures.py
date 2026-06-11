@@ -1,13 +1,14 @@
-"""Phase-report figures, generated from the result JSONs only (no model runs).
+"""Report figures, generated from the result JSONs only (no model runs).
 
-  python scripts/report/make_phase_figures.py --phase 1     # calibration story
-  python scripts/report/make_phase_figures.py --phase 2     # roster story
-  python scripts/report/make_phase_figures.py --phase 3     # optimization story
-  python scripts/report/make_phase_figures.py --phase all
+  python scripts/report/make_figures.py                       # everything
+  python scripts/report/make_figures.py --only heatmap        # name filter
+  python scripts/report/make_figures.py --paper report/final_report_v2/figures
 
-Output: results/figures/main/*.png (headline, report candidates) and
-results/figures/extra/*.png (the rest). --phase only selects which story group
-to regenerate. Figures skip gracefully when their inputs are missing.
+Output: results/figures/main/*.png are the figures used in the final report
+(MAIN_FIGURES); results/figures/extra/*.png is everything else. --paper
+additionally writes suptitle-less 200-dpi copies of the MAIN figures into DIR
+for direct \\includegraphics use (captions live in LaTeX). Figures skip
+gracefully when their inputs are missing.
 """
 from __future__ import annotations
 
@@ -41,7 +42,12 @@ METHOD_COLOR = {"raw": "#7f8c8d", "static": "#c0392b", "cqr": "#e67e22",
 # Paper-facing display names (the report uses these; raw keys stay in JSONs).
 MODEL_LABEL = {"deepar": "DeepAR", "qtransformer": "QT-uni",
                "qtransformer_multi": "QT-multi", "qlstm": "qLSTM",
-               "qdlinear": "qDLinear", "lgbm": "LightGBM-q", "qrf": "QRF"}
+               "qdlinear": "qDLinear", "lgbm": "LightGBM-q", "qrf": "QRF",
+               "lstm": "LSTM", "gru": "GRU", "dlinear": "DLinear",
+               "naive_seasonal": "Seasonal-naive", "arima": "ARIMA",
+               "sarima": "SARIMA", "naive": "Seasonal-naive", "qt": "QT-uni",
+               "qlstm_robust": "qLSTM (robust)",
+               "qtransformer_robust": "QT-uni (robust)"}
 
 
 def _fault_label(f: str) -> str:
@@ -53,40 +59,34 @@ def _load_cal(method: str, model: str) -> dict | None:
     return json.loads(p.read_text()) if p.exists() else None
 
 
-# Headline figures (report candidates) go to figures/main, the rest to
-# figures/extra. The `phase` argument only selects which story group a figure
-# belongs to for --phase regeneration; it no longer picks the output folder.
+# The figures used in the final report (v2 outline, F1-F7) go to figures/main;
+# everything else goes to figures/extra. Membership here is the single switch.
 MAIN_FIGURES = {
-    "calibration_picp_vs_intensity.png",
-    "fault_catalog_heatmap.png",
-    "robust_plus_cal.png",
-    "final_leaderboard.png",
-    "robust_training_picp.png",
-    "multiseed_rmse.png",
-    "permutation_importance.png",
-    "natural_extremes_falsealarm.png",
-    "detect_then_adapt.png",
+    "input_value.png",                      # F1  §3.2 covariate strength + leakage
+    "covariate_importance_independent.png", # F2  §3.2 (optional)
+    "error_breakdowns_full.png",            # F3  §5.2 horizon · year · temp · season
+    "fault_catalog_heatmap.png",            # F4  §7.3 degradation taxonomy
+    "calibration_picp_vs_intensity.png",    # F5  §8.1 interval-side repair
+    "robust_plus_cal.png",                  # F6  §8.3 four-corner recipe
+    "detect_then_adapt.png",                # F7  §8.4 gated repair
 }
 
 
-# --paper <dir>: additionally write a copy of each figure WITHOUT the
-# process-jargon figure title (suptitle / "Phase N —" axes titles) into <dir>
-# for direct inclusion in the LNCS report (captions live in LaTeX there).
+# --paper <dir>: additionally write a copy of each MAIN figure WITHOUT the
+# narrative suptitle into <dir> for direct inclusion in the LNCS report
+# (captions live in LaTeX there). Panel titles are kept.
 PAPER_DIR: Path | None = None
 
 
-def _save(fig, phase: int, name: str) -> None:
+def _save(fig, name: str) -> None:
     out_dir = RES / "figures" / ("main" if name in MAIN_FIGURES else "extra")
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / name
     fig.savefig(out)
     print(f"  wrote {out}")
-    if PAPER_DIR is not None:
+    if PAPER_DIR is not None and name in MAIN_FIGURES:
         if fig._suptitle is not None:
             fig._suptitle.remove()
-        for ax in fig.axes:
-            if ax.get_title().startswith("Phase"):
-                ax.set_title("")
         # tight_layout breaks figures with fig.colorbar(ax=...) axes;
         # constrained-layout figures manage themselves.
         if not fig.get_constrained_layout():
@@ -100,8 +100,8 @@ def _save(fig, phase: int, name: str) -> None:
     plt.close(fig)
 
 
-# ------------------------------------------------------------------ phase 1
-def fig_p1_picp_vs_intensity() -> None:
+# --------------------------------------------------- calibration story
+def fig_picp_vs_intensity() -> None:
     """The money plot: coverage vs corruption intensity, per repair method."""
     models = ("deepar", "qtransformer")
     kinds = ("level_shift", "fgsm")
@@ -136,11 +136,11 @@ def fig_p1_picp_vs_intensity() -> None:
             if j == 0:
                 ax.set_ylabel("PICP (target 0.90)")
     axes[0, 0].legend(frameon=False, loc="lower left")
-    fig.suptitle("Phase 1 — Coverage vs corruption intensity: static repair collapses, adaptive holds", y=1.01)
-    _save(fig, 1, "calibration_picp_vs_intensity.png")
+    fig.suptitle("Coverage vs corruption intensity: static repair collapses, adaptive holds", y=1.01)
+    _save(fig, "calibration_picp_vs_intensity.png")
 
 
-def fig_p1_mis_ls4() -> None:
+def fig_mis_ls4() -> None:
     models = ("deepar", "qtransformer")
     fig, ax = plt.subplots(figsize=(5.6, 2.8))
     labels = ["uncalibrated"] + [METHOD_LABEL[m] for m in METHODS]
@@ -159,13 +159,13 @@ def fig_p1_mis_ls4() -> None:
     ax.set_xticks(np.arange(len(labels)))
     ax.set_xticklabels(labels, rotation=12)
     ax.set_ylabel("MIS (level shift 4×)")
-    ax.set_title("Phase 1 — Interval score: adaptive repair halves MIS")
+    ax.set_title("Interval score: adaptive repair halves MIS")
     ax.legend(frameon=False)
     ax.grid(axis="y", alpha=0.25)
-    _save(fig, 1, "calibration_mis_ls4.png")
+    _save(fig, "calibration_mis_ls4.png")
 
 
-def fig_p1_significance() -> None:
+def fig_significance() -> None:
     p = RES / "base" / "significance.json"
     if not p.exists():
         return
@@ -187,11 +187,11 @@ def fig_p1_significance() -> None:
     ax.set_yticks(range(len(pairs)))
     ax.set_yticklabels([l for _, l in pairs])
     ax.set_xlabel("ΔRMSE (negative = left model better), 95% bootstrap CI")
-    ax.set_title("Phase 1 — Significance: LSTM≈QT tie; ensemble gain is real")
-    _save(fig, 1, "significance_headline.png")
+    ax.set_title("Significance: LSTM≈QT tie; ensemble gain is real")
+    _save(fig, "significance_headline.png")
 
 
-# ------------------------------------------------------------------ phase 2
+# -------------------------------------------------------- roster story
 FAMILY = {  # model -> (family, deterministic?)
     "naive_seasonal": ("classical", True), "arima": ("classical", True),
     "sarima": ("classical", True), "lstm": ("recurrent", True),
@@ -210,7 +210,7 @@ def _base_json(model: str) -> dict | None:
     return json.loads(p.read_text()) if p.exists() else None
 
 
-def fig_p2_roster() -> None:
+def fig_roster() -> None:
     rows = []
     for m in FAMILY:
         d = _base_json(m)
@@ -220,7 +220,7 @@ def fig_p2_roster() -> None:
         rows.append((m, rmse, d.get("crps"), FAMILY[m][0]))
     rows.sort(key=lambda r: r[1])
     fig, axes = plt.subplots(1, 2, figsize=(8.6, 3.2))
-    names = [r[0] for r in rows]
+    names = [MODEL_LABEL.get(r[0], r[0]) for r in rows]
     axes[0].barh(names, [r[1] for r in rows],
                  color=[FAM_COLOR[r[3]] for r in rows])
     axes[0].set_xlabel("RMSE °C (point / median)")
@@ -228,16 +228,16 @@ def fig_p2_roster() -> None:
     axes[0].invert_yaxis()
     prob = [r for r in rows if r[2] is not None]
     prob.sort(key=lambda r: r[2])
-    axes[1].barh([r[0] for r in prob], [r[2] for r in prob],
+    axes[1].barh([MODEL_LABEL.get(r[0], r[0]) for r in prob], [r[2] for r in prob],
                  color=[FAM_COLOR[r[3]] for r in prob])
     axes[1].set_xlabel("CRPS")
     axes[1].set_title("Probabilistic — CRPS")
     axes[1].invert_yaxis()
-    fig.suptitle("Phase 2 — 13-model roster (colour = family)", y=1.02)
-    _save(fig, 2, "roster_overview.png")
+    fig.suptitle("13-model roster (colour = family)", y=1.02)
+    _save(fig, "roster_overview.png")
 
 
-def fig_p2_paired_families() -> None:
+def fig_paired_families() -> None:
     pairs = [("lstm", "qlstm", "recurrent\n(p=0.024 *)"),
              ("dlinear", "qdlinear", "linear\n(p=0.081)"),
              ("lgbm", "qrf", "tree (point vs QRF med)")]
@@ -257,13 +257,13 @@ def fig_p2_paired_families() -> None:
     ax.set_xticklabels([p[2] for p in pairs])
     ax.set_ylabel("RMSE °C")
     ax.set_ylim(2.0, None)
-    ax.set_title("Phase 2 — Paired families: the pinball head costs no point accuracy")
+    ax.set_title("Paired families: the pinball head costs no point accuracy")
     ax.legend(frameon=False)
     ax.grid(axis="y", alpha=0.25)
-    _save(fig, 2, "paired_families.png")
+    _save(fig, "paired_families.png")
 
 
-def fig_p2_raw_robustness() -> None:
+def fig_raw_robustness() -> None:
     models = ("deepar", "qtransformer", "qtransformer_multi", "qlstm",
               "qdlinear", "lgbm", "qrf")
     vals, names, colors = [], [], []
@@ -276,17 +276,18 @@ def fig_p2_raw_robustness() -> None:
         colors.append(FAM_COLOR[FAMILY[m][0]])
     order = np.argsort(vals)[::-1]
     fig, ax = plt.subplots(figsize=(5.6, 2.8))
-    ax.bar([names[i] for i in order], [vals[i] for i in order],
+    ax.bar([MODEL_LABEL.get(names[i], names[i]) for i in order],
+           [vals[i] for i in order],
            color=[colors[i] for i in order])
     ax.axhline(0.9, color="k", lw=0.7, ls=":")
     ax.set_ylabel("uncalibrated PICP (level shift 4×)")
-    ax.set_title("Phase 2 — Raw robustness: trees do not 'follow' the shift")
+    ax.set_title("Raw robustness: trees do not 'follow' the shift")
     ax.tick_params(axis="x", rotation=20)
     ax.grid(axis="y", alpha=0.25)
-    _save(fig, 2, "raw_robustness_ls4.png")
+    _save(fig, "raw_robustness_ls4.png")
 
 
-def fig_p2_permutation_importance() -> None:
+def fig_permutation_importance() -> None:
     p = RES / "base" / "feature_importance.json"
     if not p.exists():
         return
@@ -296,12 +297,12 @@ def fig_p2_permutation_importance() -> None:
     fig, ax = plt.subplots(figsize=(5.2, 2.8))
     ax.barh([k for k, _ in rows], [v["delta_crps"] for _, v in rows], color="#1f4e79")
     ax.set_xlabel("ΔCRPS (channel shuffled across windows)")
-    ax.set_title("Phase 2 — Permutation importance (QT-multi, test)")
+    ax.set_title("Permutation importance (QT-multi, test)")
     ax.grid(axis="x", alpha=0.25)
-    _save(fig, 2, "permutation_importance.png")
+    _save(fig, "permutation_importance.png")
 
 
-def fig_p2_covariate_full() -> None:
+def fig_covariate_full() -> None:
     p = RES / "base" / "covariate_importance_full.json"
     if not p.exists():
         return
@@ -322,13 +323,13 @@ def fig_p2_covariate_full() -> None:
     fig, ax = plt.subplots(figsize=(6.4, 4.4))
     ax.barh(cols, vals, color=cs)
     ax.set_xlabel("ΔCRPS (channel shuffled across windows)")
-    ax.set_title("Phase 2+ — Full 13-covariate importance (QT, test)\n"
+    ax.set_title("Full 13-covariate importance (QT, test)\n"
                  "red = temperature-derived (partial leakage) · green = independent sensor · grey = calendar")
     ax.grid(axis="x", alpha=0.25)
-    _save(fig, 2, "covariate_importance_full.png")
+    _save(fig, "covariate_importance_full.png")
 
 
-def fig_p2_covariate_independent() -> None:
+def fig_covariate_independent() -> None:
     p = RES / "base" / "covariate_importance_independent.json"
     if not p.exists():
         return
@@ -356,13 +357,15 @@ def fig_p2_covariate_independent() -> None:
         if v > 0.02:
             ax.text(v + 0.05, i, f"{v:.2f}", va="center", fontsize=7)
     ax.set_xlabel("ΔCRPS (channel shuffled across windows)")
-    ax.set_title("Phase 2+ — Independent covariate importance (LEAKAGE-FREE)\n"
-                 "red = target T (dominant) · green = independent sensor · grey = calendar")
+    # narrative title as suptitle so the --paper copy drops it (caption in LaTeX)
+    fig.suptitle("Independent covariate importance (leakage-free)\n"
+                 "red = target T (dominant) · green = independent sensor · grey = calendar",
+                 y=1.06)
     ax.grid(axis="x", alpha=0.25)
-    _save(fig, 2, "covariate_importance_independent.png")
+    _save(fig, "covariate_importance_independent.png")
 
 
-def fig_p2_input_value() -> None:
+def fig_input_value() -> None:
     p = RES / "base" / "exogenous_only.json"
     if not p.exists():
         return
@@ -371,11 +374,11 @@ def fig_p2_input_value() -> None:
     pi = RES / "base" / "exogenous_only_independent.json"
     indep = json.loads(pi.read_text())["exogenous_only"]["rmse"] if pi.exists() else None
     bars = [
-        ("naive\n(reference)", r.get("naive_seasonal", {}).get("rmse"), "#7f8c8d"),
-        ("independent-only\n(p/rh/wind, no T trace)", indep, "#c0392b"),
-        ("exo+proxy\n(VPmax→T leak)", e["rmse"], "#e67e22"),
-        ("T only\n(target-only)", r.get("target_only", {}).get("rmse"), "#1f4e79"),
-        ("T + 13 cov\n(full)", r.get("full_T_plus_cov", {}).get("rmse"), "#27ae60"),
+        ("seasonal-naive\n(reference)", r.get("naive_seasonal", {}).get("rmse"), "#7f8c8d"),
+        ("independent\nsensors only", indep, "#c0392b"),
+        ("exogenous +\nT-proxies (leaky)", e["rmse"], "#e67e22"),
+        ("target T\nonly", r.get("target_only", {}).get("rmse"), "#1f4e79"),
+        ("T + all 13\ncovariates", r.get("full_T_plus_cov", {}).get("rmse"), "#27ae60"),
     ]
     bars = [b for b in bars if b[1] is not None]
     fig, ax = plt.subplots(figsize=(6.8, 3.2))
@@ -385,60 +388,80 @@ def fig_p2_input_value() -> None:
     ax.axhline(r.get("naive_seasonal", {}).get("rmse", 3.21), color="k", lw=0.7, ls=":")
     ax.set_ylabel("test RMSE °C")
     ax.set_ylim(2.0, None)
-    ax.set_title("Phase 2+ — Temperature information is indispensable\n"
-                 "without T-proxies (red) it falls BELOW naive; the VPmax leak brings T back")
+    # narrative title as suptitle so the --paper copy drops it (caption in LaTeX)
+    fig.suptitle("Temperature information is indispensable\n"
+                 "without T-proxies (red) the model falls below naive; "
+                 "the saturation-vapor-pressure leak brings T back", y=1.08)
     ax.tick_params(axis="x", labelsize=7)
     ax.grid(axis="y", alpha=0.25)
-    _save(fig, 2, "input_value.png")
+    _save(fig, "input_value.png")
 
 
-def fig_p2_error_breakdowns() -> None:
+def fig_error_breakdowns() -> None:
+    """Error anatomy for Sect. 5.2: horizon, year, temperature, season."""
     p = RES / "base" / "error_tables_full.json"
     if not p.exists():
         return
     d = json.loads(p.read_text())
-    # show the spread across the roster as 3 panels: per-horizon curves,
-    # by-temperature heatmap, by-season heatmap.
-    models = sorted(d["per_horizon"], key=lambda m: np.mean(d["per_horizon"][m]))
-    fig, axes = plt.subplots(1, 3, figsize=(12.5, 3.6))
+    cvp = RES / "base" / "cv_forward_chaining.json"
+    cv = json.loads(cvp.read_text()) if cvp.exists() else None
+    # roster models only: robust-trained variants belong to the repair story
+    models = sorted((m for m in d["per_horizon"] if m in FAMILY),
+                    key=lambda m: np.mean(d["per_horizon"][m]))
+    best, worst = models[0], models[-1]
+    n = 4 if cv else 3
+    fig, axes = plt.subplots(1, n, figsize=(3.3 * n, 3.4),
+                             layout="constrained")
 
     # panel 1: per-horizon curves (highlight best + worst, grey the rest)
     ax = axes[0]
-    for m in d["per_horizon"]:
+    for m in models:
         ph = d["per_horizon"][m]
-        hl = m in (models[0], models[-1])
+        hl = m in (best, worst)
         ax.plot(range(1, len(ph) + 1), ph, lw=1.6 if hl else 0.7,
-                color={"qtransformer_multi": "#27ae60"}.get(m, "#c0392b" if m == models[-1] else "#bbb"),
-                label=m if hl else None, zorder=3 if hl else 1)
+                color="#27ae60" if m == best else ("#c0392b" if m == worst else "#bbb"),
+                label=MODEL_LABEL.get(m, m) if hl else None,
+                zorder=3 if hl else 1)
     ax.set_xlabel("forecast step (hours)")
     ax.set_ylabel("RMSE °C")
     ax.set_title("Per-horizon (full roster)")
     ax.legend(frameon=False, fontsize=7)
     ax.grid(alpha=0.25)
 
-    # panel 2: by-temperature heatmap
-    temps = d["temp_order"]
-    mat = np.array([[d["by_temperature"][m].get(t, np.nan) for t in temps] for m in models])
-    im = axes[1].imshow(mat, aspect="auto", cmap="YlOrRd")
-    axes[1].set_xticks(range(len(temps))); axes[1].set_xticklabels(temps, fontsize=7)
-    axes[1].set_yticks(range(len(models))); axes[1].set_yticklabels(models, fontsize=6)
-    axes[1].set_title("RMSE by temperature range")
-    fig.colorbar(im, ax=axes[1], fraction=0.046)
+    # panel 2: year-based forward-chaining CV
+    if cv:
+        axc = axes[1]
+        for m, block in cv["models"].items():
+            years = sorted(block["folds"])
+            axc.plot([int(y) for y in years],
+                     [block["folds"][y]["rmse"] for y in years],
+                     "o-", ms=3, label=MODEL_LABEL.get(m, m))
+        axc.set_xticks([int(y) for y in years])
+        axc.set_xlabel("test year (expanding train)")
+        axc.set_title("By year (forward-chaining CV)")
+        axc.legend(frameon=False, fontsize=6.5)
+        axc.grid(alpha=0.25)
 
-    # panel 3: by-season heatmap
-    seas = d["season_order"]
-    mat2 = np.array([[d["by_season"][m].get(s, np.nan) for s in seas] for m in models])
-    im2 = axes[2].imshow(mat2, aspect="auto", cmap="YlGnBu")
-    axes[2].set_xticks(range(len(seas))); axes[2].set_xticklabels(seas, fontsize=7)
-    axes[2].set_yticks(range(len(models))); axes[2].set_yticklabels(models, fontsize=6)
-    axes[2].set_title("RMSE by season")
-    fig.colorbar(im2, ax=axes[2], fraction=0.046)
+    # panels 3+4: by-temperature and by-season heatmaps (shared model axis)
+    names = [MODEL_LABEL.get(m, m) for m in models]
+    for ax_h, key, order, cmap in ((axes[-2], "by_temperature", d["temp_order"], "YlOrRd"),
+                                   (axes[-1], "by_season", d["season_order"], "YlGnBu")):
+        mat = np.array([[d[key][m].get(c, np.nan) for c in order] for m in models])
+        im = ax_h.imshow(mat, aspect="auto", cmap=cmap)
+        ax_h.set_xticks(range(len(order)))
+        ax_h.set_xticklabels(order, fontsize=7)
+        ax_h.set_yticks(range(len(models)))
+        ax_h.set_yticklabels(names if ax_h is axes[-2] else [""] * len(models),
+                             fontsize=6)
+        ax_h.set_title("RMSE by temperature range" if key == "by_temperature"
+                       else "RMSE by season")
+        fig.colorbar(im, ax=ax_h, fraction=0.046)
 
-    fig.suptitle("Phase 2 — Full-roster error breakdown (per-horizon · temperature · season)", y=1.02)
-    _save(fig, 2, "error_breakdowns_full.png")
+    fig.suptitle("Full-roster error anatomy (horizon · year · temperature · season)")
+    _save(fig, "error_breakdowns_full.png")
 
 
-def fig_p2_natural_extremes() -> None:
+def fig_natural_extremes() -> None:
     p = RES / "base" / "natural_extremes.json"
     if not p.exists():
         return
@@ -456,16 +479,16 @@ def fig_p2_natural_extremes() -> None:
     for i, pi in enumerate(picps):
         ax.text(i + 0.19, drop_w[i] + 0.15, f"{pi:.2f}", ha="center", fontsize=7)
     ax.set_xticks(x)
-    ax.set_xticklabels(names, rotation=20)
+    ax.set_xticklabels([MODEL_LABEL.get(m, m) for m in names], rotation=20)
     ax.set_ylabel("MPIW °C (input-conditional τ)")
-    ax.set_title("Phase 2 — Low false-alarm cost on natural extremes (label = slice PICP)")
+    ax.set_title("Low false-alarm cost on natural extremes (label = slice PICP)")
     ax.legend(frameon=False)
     ax.grid(axis="y", alpha=0.25)
-    _save(fig, 2, "natural_extremes_falsealarm.png")
+    _save(fig, "natural_extremes_falsealarm.png")
 
 
-# ------------------------------------------------------------------ phase 3
-def fig_p3_hpo() -> None:
+# -------------------------------------------------- optimization story
+def fig_hpo() -> None:
     p = RES / "base" / "hpo.json"
     if not p.exists():
         return
@@ -483,13 +506,13 @@ def fig_p3_hpo() -> None:
     ax.set_xticks(range(len(models)))
     ax.set_xticklabels(models)
     ax.set_ylabel("test CRPS / RMSE")
-    ax.set_title("Phase 3 — HPO: default vs optimised (selection on validation only)")
+    ax.set_title("HPO: default vs optimised (selection on validation only)")
     ax.legend(frameon=False)
     ax.grid(axis="y", alpha=0.25)
-    _save(fig, 3, "hpo_default_vs_best.png")
+    _save(fig, "hpo_default_vs_best.png")
 
 
-def fig_p3_multiseed() -> None:
+def fig_multiseed() -> None:
     p = RES / "base" / "multiseed.json"
     if not p.exists():
         return
@@ -502,14 +525,14 @@ def fig_p3_multiseed() -> None:
                     color="#1f4e79")
         ax.scatter([i] * len(vals), vals, s=10, color="#7f8c8d", zorder=3)
     ax.set_xticks(range(len(names)))
-    ax.set_xticklabels(names, rotation=15)
+    ax.set_xticklabels([MODEL_LABEL.get(m, m) for m in names], rotation=15)
     ax.set_ylabel("RMSE °C (3 seeds)")
-    ax.set_title("Phase 3 — Seed sensitivity (mean ± std; dots = individual seeds)")
+    ax.set_title("Seed sensitivity (mean ± std; dots = individual seeds)")
     ax.grid(axis="y", alpha=0.25)
-    _save(fig, 3, "multiseed_rmse.png")
+    _save(fig, "multiseed_rmse.png")
 
 
-def fig_p3_cv() -> None:
+def fig_cv() -> None:
     p = RES / "base" / "cv_forward_chaining.json"
     if not p.exists():
         return
@@ -518,16 +541,16 @@ def fig_p3_cv() -> None:
     for m, block in cv["models"].items():
         years = sorted(block["folds"])
         ax.plot([int(y) for y in years], [block["folds"][y]["rmse"] for y in years],
-                "o-", label=m)
+                "o-", label=MODEL_LABEL.get(m, m))
     ax.set_xlabel("test year (expanding train)")
     ax.set_ylabel("RMSE °C")
-    ax.set_title("Phase 3 — Year-based forward-chaining CV (fold variance)")
+    ax.set_title("Year-based forward-chaining CV (fold variance)")
     ax.legend(frameon=False)
     ax.grid(alpha=0.25)
-    _save(fig, 3, "cv_fold_variance.png")
+    _save(fig, "cv_fold_variance.png")
 
 
-def fig_p3_robust_training() -> None:
+def fig_robust_training() -> None:
     p = RES / "base" / "qlstm_robust_compare.json"
     if not p.exists():
         return
@@ -543,13 +566,13 @@ def fig_p3_robust_training() -> None:
     ax.set_xticks(x)
     ax.set_xticklabels([s.replace("_", "\n") for s in settings], fontsize=7)
     ax.set_ylabel("uncalibrated PICP")
-    ax.set_title("Phase 3 — Robust (anomaly-augmented) training: normal vs optimised")
+    ax.set_title("Robust (anomaly-augmented) training: normal vs robust-trained")
     ax.legend(frameon=False)
     ax.grid(axis="y", alpha=0.25)
-    _save(fig, 3, "robust_training_picp.png")
+    _save(fig, "robust_training_picp.png")
 
 
-def fig_p3_horizon() -> None:
+def fig_horizon() -> None:
     p = RES / "base" / "horizon_ablation.json"
     if not p.exists():
         return
@@ -566,13 +589,13 @@ def fig_p3_horizon() -> None:
     ax.set_xticks(x)
     ax.set_xlabel("forecast horizon (hours)")
     ax.set_ylabel("error")
-    ax.set_title("Phase 3 — Horizon ablation: error grows with horizon (24h choice)")
+    ax.set_title("Horizon ablation: error grows with horizon (24h choice)")
     ax.legend(frameon=False)
     ax.grid(alpha=0.25)
-    _save(fig, 3, "horizon_ablation.png")
+    _save(fig, "horizon_ablation.png")
 
 
-def fig_p3_extreme_quantiles() -> None:
+def fig_extreme_quantiles() -> None:
     p = RES / "base" / "qt_extreme_quantiles.json"
     if not p.exists():
         return
@@ -594,13 +617,13 @@ def fig_p3_extreme_quantiles() -> None:
     ax.set_xticklabels(["90%", "95%", "98%"])
     ax.set_ylabel("PICP")
     ax.set_ylim(0.7, 1.0)
-    ax.set_title("Phase 3 — Extreme quantiles: 90/95/98% intervals (full + extreme deciles)")
+    ax.set_title("Extreme quantiles: 90/95/98% intervals (full + extreme deciles)")
     ax.legend(frameon=False, fontsize=7)
     ax.grid(axis="y", alpha=0.25)
-    _save(fig, 3, "extreme_quantiles.png")
+    _save(fig, "extreme_quantiles.png")
 
 
-def fig_p3_ensemble_intervals() -> None:
+def fig_ensemble_intervals() -> None:
     p = RES / "base" / "ensemble_intervals.json"
     if not p.exists():
         return
@@ -614,12 +637,12 @@ def fig_p3_ensemble_intervals() -> None:
     for i, r in enumerate(rows):
         ax.text(r[1] + 0.002, i, f"PICP {r[2]:.3f}", va="center", fontsize=7)
     ax.set_xlabel("pinball ≈ CRPS/2 (clean test) — red = ensemble")
-    ax.set_title("Phase 3 — Interval combination: ensemble cannot beat the strongest member")
+    ax.set_title("Interval combination: ensemble cannot beat the strongest member")
     ax.grid(axis="x", alpha=0.25)
-    _save(fig, 3, "ensemble_intervals.png")
+    _save(fig, "ensemble_intervals.png")
 
 
-# ------------------------------------------------------------------ phase 4
+# ------------------------------------------------------- anomaly story
 # Catalog order follows the mechanism grouping of the report: additive,
 # structural, temporal, adversarial (separator lines between groups).
 V2_FAULTS = ("point_spike", "contextual_outlier", "noise_burst",
@@ -632,7 +655,7 @@ HEATMAP_MODELS = (("qtransformer_multi", "QT-multi"),
                   ("lgbm", "LightGBM-quantile (tree)"))
 
 
-def fig_p4_fault_heatmap() -> None:
+def fig_fault_heatmap() -> None:
     """Fault catalog x intensity -> raw PICP, headline model vs tree contrast.
 
     Two panels: the multivariate quantile Transformer (gradient model, worst
@@ -683,13 +706,13 @@ def fig_p4_fault_heatmap() -> None:
             if y < len(faults) - 0.5:
                 ax.axhline(y, color="k", lw=1.0)
         ax.set_title(label, fontsize=9)
-    fig.suptitle("Phase 4 — fault catalog × intensity, raw PICP", y=1.0)
+    fig.suptitle("Fault catalog × intensity — raw PICP")
     fig.colorbar(im, ax=list(axes), fraction=0.046 / len(panels),
                  label="PICP (target 0.90)")
-    _save(fig, 4, "fault_catalog_heatmap.png")
+    _save(fig, "fault_catalog_heatmap.png")
 
 
-def fig_p4_robust_generalize() -> None:
+def fig_robust_generalize() -> None:
     p = RES / "base" / "robust_generalize.json"
     if not p.exists():
         return
@@ -706,20 +729,20 @@ def fig_p4_robust_generalize() -> None:
         robust = [d["models"][m]["robust"][s]["picp"] for s in settings]
         off = (k - len(models) / 2) * 2 * w + w
         ax.bar(x + off - w / 2, normal, w, color=base, alpha=0.4,
-               label=f"{m} normal" if k == 0 else None)
+               label=f"{MODEL_LABEL.get(m, m)} normal" if k == 0 else None)
         ax.bar(x + off + w / 2, robust, w, color=base,
-               label=f"{m} robust" if k == 0 else None)
+               label=f"{MODEL_LABEL.get(m, m)} robust" if k == 0 else None)
     ax.axhline(0.9, color="k", lw=0.7, ls=":")
     ax.set_xticks(x)
     ax.set_xticklabels([s.replace("_", "\n") for s in settings], fontsize=7)
     ax.set_ylabel("raw PICP")
-    ax.set_title("Phase 4 — Robust training generalises across 3 architectures (light=normal, dark=robust)")
+    ax.set_title("Robust training generalises across 3 architectures (light=normal, dark=robust)")
     ax.legend(frameon=False, fontsize=7, ncol=3)
     ax.grid(axis="y", alpha=0.25)
-    _save(fig, 4, "robust_generalize.png")
+    _save(fig, "robust_generalize.png")
 
 
-def fig_p4_resolution() -> None:
+def fig_resolution() -> None:
     p = RES / "base" / "ablation_10min.json"
     if not p.exists():
         return
@@ -737,12 +760,12 @@ def fig_p4_resolution() -> None:
         ax.text(i, v + 0.01, f"{v:.3f}", ha="center", fontsize=8)
     ax.set_ylabel("test RMSE °C")
     ax.set_ylim(2.3, 2.45)
-    ax.set_title(f"Phase 4 — 10-min resolution does not help\n(diff +{a['rmse']-h['rmse']:.3f}, within seed std ±{std:.3f})")
+    ax.set_title(f"10-min resolution does not help\n(diff +{a['rmse']-h['rmse']:.3f}, within seed std ±{std:.3f})")
     ax.grid(axis="y", alpha=0.25)
-    _save(fig, 4, "resolution_ablation.png")
+    _save(fig, "resolution_ablation.png")
 
 
-def fig_p4_robust_plus_cal() -> None:
+def fig_robust_plus_cal() -> None:
     p = RES / "base" / "robust_plus_cal.json"
     if not p.exists():
         return
@@ -791,31 +814,31 @@ def fig_p4_robust_plus_cal() -> None:
         ax2.set_ylabel("PICP")
         ax2.set_title("Level shift 4× across the roster", fontsize=9)
         ax2.grid(axis="y", alpha=0.25)
-    fig.suptitle("Phase 4 — model-side and interval-side repairs compose", y=1.0)
+    fig.suptitle("Model-side and interval-side repairs compose", y=1.0)
     fig.tight_layout()
-    _save(fig, 4, "robust_plus_cal.png")
+    _save(fig, "robust_plus_cal.png")
 
 
-def fig_p4_leaderboard() -> None:
+def fig_leaderboard() -> None:
     p = RES / "base" / "report_tables.json"
     if not p.exists():
         return
     lb = json.loads(p.read_text())["clean_leaderboard"]
     rows = sorted(lb.items(), key=lambda kv: kv[1]["rmse"])
     fig, ax = plt.subplots(figsize=(6.2, 3.6))
-    names = [r[0] for r in rows]
+    names = [MODEL_LABEL.get(r[0], r[0]) for r in rows]
     ax.barh(names, [r[1]["rmse"] for r in rows], color="#1f4e79")
     for i, (_, r) in enumerate(rows):
         if "picp" in r:
             ax.text(r["rmse"] + 0.02, i, f"PICP {r['picp']:.2f}", va="center", fontsize=6.5)
     ax.set_xlabel("clean-test RMSE °C (point / median)")
-    ax.set_title("Phase 4 — Full-roster clean-test ranking")
+    ax.set_title("Full-roster clean-test ranking")
     ax.invert_yaxis()
-    _save(fig, 4, "final_leaderboard.png")
+    _save(fig, "final_leaderboard.png")
 
 
-# ------------------------------------------------------------------ phase 5
-def fig_p5_detect_adapt() -> None:
+# ----------------------------------------------------- detection story
+def fig_detect_adapt() -> None:
     """Detect-then-adapt: 4-regime repair comparison + detection ladder."""
     det_path = RES / "base" / "detect_adapt_detection.json"
     if not det_path.exists():
@@ -871,37 +894,44 @@ def fig_p5_detect_adapt() -> None:
     ax2.set_ylabel("detection AUC vs clean test")
     ax2.set_title("Detectability scales with severity", fontsize=9)
     ax2.legend(fontsize=6, ncols=2)
-    fig.suptitle("Phase 5 — Detect-then-adapt: gated repair + detection quality",
+    fig.suptitle("Detect-then-adapt: gated repair + detection quality",
                  fontsize=10)
     fig.tight_layout()
-    _save(fig, 5, "detect_then_adapt.png")
+    _save(fig, "detect_then_adapt.png")
 
 
-PHASES = {
-    1: (fig_p1_picp_vs_intensity, fig_p1_mis_ls4, fig_p1_significance),
-    2: (fig_p2_roster, fig_p2_paired_families, fig_p2_raw_robustness,
-        fig_p2_permutation_importance, fig_p2_covariate_full, fig_p2_covariate_independent, fig_p2_input_value, fig_p2_error_breakdowns, fig_p2_natural_extremes),
-    3: (fig_p3_hpo, fig_p3_multiseed, fig_p3_cv, fig_p3_robust_training,
-        fig_p3_horizon, fig_p3_extreme_quantiles, fig_p3_ensemble_intervals),
-    4: (fig_p4_fault_heatmap, fig_p4_resolution, fig_p4_robust_generalize, fig_p4_robust_plus_cal, fig_p4_leaderboard),
-    5: (fig_p5_detect_adapt,),
-}
+FIGURES = (
+    # calibration story
+    fig_picp_vs_intensity, fig_mis_ls4, fig_significance,
+    # roster story
+    fig_roster, fig_paired_families, fig_raw_robustness,
+    fig_permutation_importance, fig_covariate_full, fig_covariate_independent,
+    fig_input_value, fig_error_breakdowns, fig_natural_extremes,
+    # optimization story
+    fig_hpo, fig_multiseed, fig_cv, fig_robust_training,
+    fig_horizon, fig_extreme_quantiles, fig_ensemble_intervals,
+    # anomaly story
+    fig_fault_heatmap, fig_resolution, fig_robust_generalize,
+    fig_robust_plus_cal, fig_leaderboard,
+    # detection story
+    fig_detect_adapt,
+)
 
 
 def main() -> None:
     global PAPER_DIR
     ap = argparse.ArgumentParser()
-    ap.add_argument("--phase", default="all", choices=("1", "2", "3", "4", "5", "all"))
+    ap.add_argument("--only", default=None, metavar="SUBSTR",
+                    help="regenerate only figures whose function name contains SUBSTR")
     ap.add_argument("--paper", default=None, metavar="DIR",
-                    help="also write title-less copies into DIR (LNCS figures)")
+                    help="also write suptitle-less copies of MAIN figures into DIR")
     args = ap.parse_args()
     if args.paper:
         PAPER_DIR = Path(args.paper)
-    phases = (1, 2, 3, 4, 5) if args.phase == "all" else (int(args.phase),)
-    for ph in phases:
-        print(f"Phase {ph} figures:")
-        for fn in PHASES[ph]:
-            fn()
+    for fn in FIGURES:
+        if args.only and args.only not in fn.__name__:
+            continue
+        fn()
 
 
 if __name__ == "__main__":

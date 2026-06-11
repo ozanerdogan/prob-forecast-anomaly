@@ -196,7 +196,7 @@ python scripts/ablation/run_cv.py
 # Tables + figures (read result JSONs only)
 python scripts/report/make_report_tables.py
 python scripts/report/make_error_tables.py
-python scripts/report/make_phase_figures.py --phase all
+python scripts/report/make_figures.py   # --paper report/final_report_v2/figures for LaTeX copies
 ```
 
 | Output | Where |

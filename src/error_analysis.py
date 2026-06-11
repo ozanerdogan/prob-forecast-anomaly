@@ -11,7 +11,7 @@ deterministic-vs-probabilistic story:
   - overconfident-failure analysis for probabilistic models (intervals that are
     narrow yet miss the truth -- the dangerous failure mode).
 
-The runner (scripts/run_error_analysis.py) trains the models, builds the
+The runner (scripts/analysis/run_error_analysis.py) trains the models, builds the
 timestamp bookkeeping and calls these functions.
 """
 from __future__ import annotations

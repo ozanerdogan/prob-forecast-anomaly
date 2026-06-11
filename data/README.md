@@ -5,10 +5,10 @@ We use the **Jena Climate 2009–2016** dataset (Max Planck Institute for Biogeo
 
 ## Automatic download
 
-The download is wrapped in `scripts/download_data.py`:
+The download is wrapped in `data/download_data.py`:
 
 ```bash
-python scripts/download_data.py
+python data/download_data.py
 ```
 
 This will:
@@ -58,10 +58,14 @@ Splits are produced deterministically by `src/preprocessing.py`.
 | `wd (deg)` | Wind direction | deg |
 
 **Forecasting target:** `T (degC)`. The default setting is single-target (univariate).
-Multivariate variants additionally feed exogenous weather channels
-(`p (mbar)`, `rh (%)`, `VPmax (mbar)`, `wv (m/s)`) plus calendar features alongside the target,
-exercised in the ablation study (`src/ablation.py`). Because DeepAR is autoregressive, feeding
-*contemporaneous* future weather leaks the target — that variant (`deepar_multivariate`) is an
-**oracle upper bound**, while **`deepar_past_covariate`** freezes horizon weather at the origin
-(persistence) for a leakage-free setting. See the covariate-handling note in the top-level
-`README.md`.
+Multivariate variants additionally feed the **5 independent** exogenous channels
+(`p (mbar)`, `rh (%)`, `wv (m/s)`, `max. wv (m/s)`, `wd (deg)`) plus calendar features alongside
+the target. The remaining 8 exogenous variables (`Tpot`, `Tdew`, `VPmax`, `VPact`, `VPdef`,
+`sh`, `H2OC`, `rho`) are analytically derivable from temperature (e.g. inverting the Magnus
+formula recovers T from VPmax with RMSE 0.05 °C against a T std of 8.4 °C), so feeding them
+would covertly inject the target into the input — they are excluded as **leakage**. Because
+DeepAR is autoregressive, feeding *contemporaneous* future weather also leaks the target — that
+variant (`deepar_multivariate`) was an oracle upper bound and has been removed from the
+leaderboard (archived in `cowork/3_arsiv/`), while **`deepar_past_covariate`** freezes horizon
+weather at the origin (persistence) for a leakage-free setting. See the covariate-handling note
+in the top-level `README.md`.

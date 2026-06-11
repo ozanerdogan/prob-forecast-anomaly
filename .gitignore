@@ -41,5 +41,6 @@ wandb/
 
 # Temp / local notes
 cowork/
-implementation.md
-report_ideas.md
+
+# Local report workspace (drafts, tables, LNCS folder) -- user zips manually
+report/

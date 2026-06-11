@@ -1,286 +1,240 @@
 # Probabilistic Forecasting with Anomaly Injection
 
-CENG 463 — Introduction to Machine Learning — Term Project  
+CENG 463 — Introduction to Machine Learning — Term Project
 İzmir Institute of Technology — Spring 2026
 
-**Student:** Ozan Erdoğan  
-**Instructor:** Prof. Dr. Aytuğ Onan  
-**Dataset:** Jena Climate, a multivariate weather time-series dataset with approximately 420K raw observations and 14 meteorological variables.
+**Student:** Ozan Erdoğan
+**Instructor:** Prof. Dr. Aytuğ Onan
+**Dataset:** Jena Climate (2009–2016, hourly), target `T (degC)`, 168 h lookback → 24 h horizon.
 
 ---
 
-## Problem
+Forecasting models are usually judged on clean test data, but real series arrive contaminated —
+sensor spikes, flatlines, level shifts, drifts, even adversarial perturbations. This project asks
+whether **probabilistic forecasters' uncertainty stays trustworthy when the input context is
+corrupted**, and how to repair it when it is not.
 
-Time-series forecasting models are typically evaluated under clean test conditions. In practice,
-real-world series are contaminated with point spikes, level shifts, contextual outliers, and
-adversarial perturbations. We compare **deterministic** and **probabilistic** forecasting approaches
-under controlled anomaly injection scenarios to study which approach degrades more gracefully and
-whether the probabilistic models' uncertainty stays **trustworthy** (well-calibrated and not
-overconfident) when the input context is contaminated — a prerequisite for anomaly-aware decision
-making, which we leave to future work.
+**Headline findings** (14-model roster × 8 fault types × 3 intensities, 359 test windows):
 
+- On clean data the multivariate quantile Transformer leads (RMSE 2.28); quantile heads cost
+  nothing over their deterministic twins (qLSTM beats LSTM, DM p = 0.024).
+- Under a 4× level shift, 90 % prediction intervals collapse to **0.20–0.39 coverage** — the
+  uncertainty fails exactly when it is needed. Static and CQR recalibration do **not** help
+  (exchangeability is broken).
+- **Online adaptive calibration (ACI)** recovers coverage to 0.75–0.87, and **anomaly-augmented
+  robust training** independently repairs the point forecast (RMSE 9.0 → 5.4). The two are
+  **complementary**: together 0.87–0.89, near the 0.90 target.
 
-## Approach
+Key figures live in [`results/figures/main/`](results/figures/main); the full result JSONs in
+[`results/`](results).
 
-We forecast hourly temperature 24 hours ahead from a 168-hour lookback and
-compare three families:
+## Quickstart
 
-- **Deterministic baselines** — naive seasonal, ARIMA, and an LSTM. A **SARIMA**
-  model is added as a *control*: it isolates whether plain ARIMA's weakness comes
-  from the missing seasonal component rather than serving as just another baseline.
-- **Probabilistic models** — **DeepAR** (autoregressive LSTM with a Gaussian or
-  Student-t likelihood, trained by NLL, sampled to quantiles) and a **quantile
-  Transformer** (encoder with per-quantile heads trained by pinball loss).
-- **Robustness study** — every model is re-scored under injected anomalies
-  (point spike, contextual outlier, level shift, and an L-inf FGSM perturbation),
-  with intensity scaled by the local rolling std. The deterministic family has two
-  members (the LSTM and the untrained naive-seasonal); all models see the *same*
-  injected context for the non-gradient anomalies, while FGSM is white-box per
-  model, so naive-seasonal (no gradient) is reported N/A there. We add **post-hoc
-  spread-temperature calibration** fit on validation and report PICP before/after.
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python data/download_data.py     # fetch Jena Climate -> data/processed/jena_hourly.parquet
+pytest                           # CPU-only unit suite, no dataset/GPU needed
+```
 
-The study is rounded out by a mandatory **ablation** (input richness —
-target-only and the leakage-free past-covariate setting — plus lookback,
-likelihood, quantile-set size), an **error analysis**
-(per-horizon, by season and temperature range, worst windows under anomaly, and
-overconfident-failure analysis), and a **visualization** suite.
+Every heavy script accepts `--smoke` for a fast 1-epoch sanity pass.
 
-> **Stage-2 uncertainty repair (two-stage design).** Stage-1 scripts dump
-> frozen forecasts (`results/predictions/`); stage-2 calibration scripts read
-> only those dumps, so before/after deltas are attributable to the repair
-> method alone. Compared regimes: **static spread temperature** (offline
-> baseline), **CQR** (offline conformal margin), **ACI-style online spread
-> adaptation** (window *t* uses only realised coverage from windows < *t* —
-> the feedback available in deployment), and an **offline input-conditional
-> spread** fit on validation windows with synthetically injected anomalies
-> (no test feedback of any kind). A hampel **detect-and-clean** input-repair
-> baseline provides the input-side contrast. Headline: under a 4-sigma level
-> shift DeepAR's 90% interval covers 27% of outcomes and static repair only
-> lifts it to 32%, while the adaptive regimes recover 0.85 (ACI) / 0.72
-> (input-conditional) at roughly half the interval score — uncertainty can be
-> made trustworthy under contamination, but not with a static correction.
-> Model comparisons are backed by Diebold-Mariano + paired-bootstrap tests
-> (`results/base/significance.json`): LSTM vs the quantile Transformer is a
-> statistical tie (p = 0.98) while the LSTM+QT ensemble's gain is significant
-> (p = 0.006).
+<details>
+<summary><b>Approach & model roster</b></summary>
 
-> **Covariate handling (leakage matters).** DeepAR is autoregressive, so feeding
-> the *contemporaneous* exogenous weather over the horizon would leak the answer.
-> We therefore evaluate only the realistic **`deepar_past_covariate`** variant,
-> which freezes horizon weather at the last observed value (persistence) and keeps
-> only the calendar features as true future; once leakage is removed the exogenous
-> covariates no longer help DeepAR at the shared budget (and calibration degrades).
-> (A naive `deepar_multivariate` run that *does* leak the horizon scores a
-> physically-impossible CRPS ≈ 0.08 — the autoregressive analogue of the VPmax→T
-> leakage; it is excluded from the roster and discussed only as a leakage example.)
-> The quantile-Transformer encoder never reads horizon covariates, so its
-> `qtransformer_multivariate` is already a leakage-free past-covariate setting.
+We compare paired deterministic/probabilistic families so the "does probabilistic cost accuracy?"
+question is controlled within an architecture:
 
-## Phase reports
+| Family | Deterministic | Probabilistic |
+|---|---|---|
+| Recurrent | LSTM, GRU | qLSTM (pinball twin head), DeepAR (Gaussian/Student-t NLL) |
+| Linear | DLinear | qDLinear |
+| Tree | LightGBM (point) | LightGBM-quantile, QRF |
+| Attention | — | Quantile Transformer (uni + multivariate) |
+| Classical | naive seasonal, ARIMA, SARIMA | — |
 
-The work after the progress report is organised in four phases; each has a
-compact report with headline numbers, figures and an honest what-worked /
-what-didn't section. Start with the synthesis:
+Metrics: RMSE/MAE (point), CRPS, pinball, PICP, MPIW, MIS (interval, α = 0.1); model comparisons
+are backed by Diebold–Mariano + paired-bootstrap tests (`results/base/significance.json`).
 
-- **[report/SUMMARY.md](report/SUMMARY.md)** — Phase 1–4 synthesis (what we did
-  / why / what we expected / outcome).
-- [Phase 1](report/phase1_report.md) — adaptive calibration (ACI, input-conditional).
-- [Phase 2](report/phase2_report.md) — 13-model roster, multivariate base, v2 fault catalog.
-- [Phase 3](report/phase3_report.md) — HPO, multi-seed, CV, robust training, ensembles.
-- [Phase 4](report/phase4_report.md) — v2 sweep, robust×calibration combined study, report tables.
+</details>
 
-Headline: under a 4-sigma level shift the 90% interval covers 27% of outcomes;
-static repair reaches 32%, online adaptive calibration 85%, and **anomaly-robust
-training + adaptive calibration together 87%** while keeping the point forecast
-(median RMSE 5.4 vs 9.0 uncalibrated).
+<details>
+<summary><b>Anomaly catalog & the two-stage repair design</b></summary>
 
-## Repository Structure
+**Catalog (8 faults, 3 intensities, local-std scaled, injected into the test context window of the
+target channel):** point spike, contextual outlier, level shift, white-box FGSM (v1) + flatline,
+drift, noise burst, gap imputation, clock skew (v2). Severity taxonomy at 4× intensity:
+catastrophic (drift, level shift, FGSM — PICP < 0.37), moderate (flatline, clock skew ≈ 0.66),
+mild (noise burst, gap ≈ 0.88).
+
+**Two-stage design (the methodological core).** Stage-1 scripts train models once and dump frozen
+forecasts to `results/predictions/`; stage-2 calibrators read **only** those dumps, so
+before/after deltas are attributable to the repair method alone. Compared regimes:
+
+- **static spread temperature** — offline baseline; fails under shift,
+- **CQR** — offline conformal margin; fails under shift (exchangeability broken),
+- **ACI** — online spread adaptation; window *t* uses only realised coverage from windows < *t*
+  (the feedback actually available in deployment),
+- **input-conditional τ** — offline, fit on validation windows with synthetically injected
+  anomalies; no test feedback of any kind,
+- **hampel detect-and-clean** — input-side contrast; catches spikes, blind to level shift/drift.
+
+A **natural-extremes slice** (real cold fronts / warm-ups, no injection) measures the false-alarm
+cost: adaptive methods widen only ~8–11 % on legitimate sharp transitions while keeping coverage.
+
+</details>
+
+<details>
+<summary><b>Covariate handling — leakage matters</b></summary>
+
+8 of the 13 exogenous Jena variables are analytically derivable from temperature (inverting the
+Magnus formula recovers T from `VPmax` with RMSE 0.05 °C vs. a T std of 8.4 °C). Feeding them
+covertly injects the target: an "exogenous-only" model with proxies scores RMSE 2.32, but with
+only the **5 genuinely independent** sensors (`p`, `rh`, `wv`, `max. wv`, `wd`) it drops to 3.68 —
+*worse than the naive baseline* (3.21). The official multivariate set therefore uses only the 5
+independent channels (+ calendar features).
+
+DeepAR is autoregressive, so feeding *contemporaneous* horizon weather also leaks the answer —
+that oracle variant is removed from the roster (archived); the leakage-free
+`deepar_past_covariate` variant freezes horizon weather at the origin. The quantile-Transformer
+encoder never reads horizon covariates, so its multivariate variant is leakage-free by
+construction — which is also why most input-side ablations run on it.
+
+</details>
+
+<details>
+<summary><b>Repository structure</b></summary>
 
 ```
 .
-├── data/                    # Raw / processed data (gitignored)
-│   └── README.md            # Data acquisition instructions
-├── src/
-│   ├── data_loader.py       # Jena Climate download + load
-│   ├── preprocessing.py     # Splits, scaling, windowing
-│   ├── features.py          # Calendar + exogenous covariate frames
-│   ├── seq_data.py          # AR / encoder sliding-window builders
-│   ├── metrics.py           # RMSE, MAE, MAPE; CRPS, pinball, PICP, MIS, sMAPE, MASE
-│   ├── anomaly.py           # Anomaly injection: spike, outlier, level shift, FGSM
-│   ├── calibration.py       # Post-hoc spread-temperature calibration
-│   ├── experiment.py        # Shared train/predict/gradient plumbing
-│   ├── ablation.py          # Ablation variants over model design choices
-│   ├── error_analysis.py    # Error-slicing primitives
-│   ├── baselines/
-│   │   ├── naive_seasonal.py
-│   │   ├── arima_baseline.py
-│   │   ├── sarima_baseline.py   # Seasonal control for the ARIMA question
-│   │   └── lstm_baseline.py
-│   └── models/
-│       ├── deepar.py            # Autoregressive LSTM + Gaussian/Student-t NLL
-│       └── quantile_transformer.py  # Encoder + pinball-loss quantile heads
-├── scripts/                 # Entry points
-│   ├── download_data.py
-│   ├── run_naive.py
-│   ├── run_arima.py
-│   ├── run_sarima.py        # SARIMA control
-│   ├── run_lstm.py
-│   ├── run_deepar.py        # DeepAR probabilistic forecaster
-│   ├── run_qtransformer.py  # Quantile Transformer
-│   ├── run_anomaly_eval.py  # Clean vs anomalous eval (+ calibration)
-│   ├── run_ablation.py      # Ablation study
-│   ├── run_error_analysis.py
-│   └── make_figures.py      # --phase {1,2,all}
-├── tests/                   # pytest unit tests (metrics, models, anomaly, calibration)
-├── results/                 # base/ (stage-1 metrics), calibrated/, predictions/, ablation/, figures/
-└── report/                  # Progress report
+├── data/                  # acquisition README + download_data.py (raw/processed gitignored)
+├── src/                   # library code
+│   ├── anomaly.py             # fault injectors (v1 + v2), FGSM
+│   ├── calibrators.py         # static τ / CQR / ACI / ACI-margin / input-τ
+│   ├── calib_runner.py        # stage-2 plumbing: frozen dumps -> calibrated metrics
+│   ├── model_eval.py          # stage-1 plumbing: eval + dump protocol
+│   ├── predictions_io.py      # frozen-forecast .npz store
+│   ├── robust.py              # anomaly-augmented training (augment_fn factory)
+│   ├── baselines/  models/    # model implementations
+│   └── ...                    # metrics, features, windowing, error analysis
+├── scripts/
+│   ├── models/            # stage 1: one entry point per model (train + dump)
+│   ├── calibrate/         # stage 2: calibrators (read frozen dumps only)
+│   ├── ablation/          # ablations, HPO (+ Optuna), multiseed, CV
+│   ├── analysis/          # anomaly sweeps, significance, robust×calibration studies
+│   └── report/            # tables + figures from result JSONs (no model runs)
+├── tests/                 # CPU-only pytest suite (no dataset, no GPU)
+├── results/
+│   ├── base/              # stage-1 per-model metrics (JSON)
+│   ├── calibrated/        # stage-2 metrics per method/model
+│   ├── ablation/          # per-variant JSONs + summary.json
+│   ├── figures/main/      # headline figures (report candidates)
+│   ├── figures/extra/     # everything else
+│   └── predictions/       # frozen forecasts (.npz, gitignored)
+└── report/                # local report workspace (gitignored)
 ```
 
-## Reproduction
+</details>
+
+<details>
+<summary><b>Full reproduction pipeline</b></summary>
 
 ```bash
-# 1. Environment
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+# Stage 1 — models (train + dump frozen forecasts)
+python scripts/models/run_naive.py
+python scripts/models/run_arima.py
+python scripts/models/run_sarima.py
+python scripts/models/run_lstm.py
+python scripts/models/run_gru.py
+python scripts/models/run_dlinear.py          # DLinear + qDLinear twins
+python scripts/models/run_lgbm.py             # LightGBM point + quantile
+python scripts/models/run_qrf.py
+python scripts/models/run_qlstm.py
+python scripts/models/run_deepar.py
+python scripts/models/run_qtransformer.py
+python scripts/models/run_qtransformer_multi.py   # multivariate QT + permutation importance
+python scripts/models/run_qlstm_robust.py         # robust qLSTM as a first-class dump
+python scripts/models/run_qt_robust.py
 
-# 2. Data
-python scripts/download_data.py
+# Anomaly sweep (also dumps frozen forecasts; --catalog v2 for the 8-fault sweep)
+python scripts/analysis/run_anomaly_eval.py --catalog v2
 
-# 3. Deterministic baselines (Phase 1)
-python scripts/run_naive.py
-python scripts/run_arima.py
-python scripts/run_sarima.py        # seasonal control
-python scripts/run_lstm.py
+# Stage 2 — calibration (reads frozen dumps, never runs a model)
+python scripts/calibrate/calibrate_static.py
+python scripts/calibrate/calibrate_cqr.py
+python scripts/calibrate/calibrate_aci.py
+python scripts/calibrate/calibrate_aci_margin.py
+python scripts/calibrate/calibrate_input_tau.py
+python scripts/calibrate/calibrate_detect_clean.py
 
-# 4. Probabilistic models (Phase 2)
-python scripts/run_deepar.py
-python scripts/run_qtransformer.py
+# Studies
+python scripts/analysis/run_significance.py
+python scripts/analysis/run_natural_extremes.py
+python scripts/analysis/run_robust_generalize.py   # robust training on qLSTM/QT/DeepAR
+python scripts/analysis/run_robust_plus_cal.py     # model-side × interval-side 4 corners
+python scripts/analysis/run_error_analysis.py
+python scripts/analysis/run_ensemble_intervals.py
+python scripts/analysis/run_composite_anomaly.py
+python scripts/analysis/run_tail_oversampling.py
 
-# 5. Anomaly robustness, ablation, error analysis
-python scripts/run_anomaly_eval.py   # also dumps frozen forecasts -> results/predictions/
-python scripts/run_ablation.py
-python scripts/run_error_analysis.py
+# Ablations / optimization
+python scripts/ablation/run_ablation.py            # input/lookback/likelihood/quantile-set
+python scripts/ablation/run_horizon_ablation.py    # 12/24/48/168 h
+python scripts/ablation/run_10min_ablation.py      # native 10-min resolution
+python scripts/ablation/run_qt_extreme_quantiles.py
+python scripts/ablation/run_covariate_importance.py
+python scripts/ablation/run_exogenous_only.py
+python scripts/ablation/run_hpo.py
+python scripts/ablation/run_hpo_optuna.py          # Optuna TPE confirmation
+python scripts/ablation/run_multiseed.py
+python scripts/ablation/run_cv.py
 
-# 5b. Phase-2 model roster (paired det/prob families) + multivariate base
-python scripts/run_lgbm.py            # tree: LightGBM point + quantile
-python scripts/run_qrf.py             # tree-prob second opinion (QRF)
-python scripts/run_qlstm.py           # recurrent: quantile-LSTM twin
-python scripts/run_gru.py             # recurrent: GRU point twin
-python scripts/run_dlinear.py         # linear: DLinear + qDLinear twins
-python scripts/run_qtransformer_multi.py   # multivariate QT base + permutation importance
-python scripts/probe_deepar_covariates.py  # why past-covariates hurt DeepAR
-
-# 5c. Stage-2 calibration -- reads the frozen predictions, never runs a model
-python scripts/calibrate_static.py
-python scripts/calibrate_cqr.py
-python scripts/calibrate_aci.py
-python scripts/calibrate_input_tau.py
-python scripts/calibrate_detect_clean.py
-
-# 5d. Significance tests + natural sharp-transition slice (no injection)
-python scripts/run_significance.py
-python scripts/run_natural_extremes.py
-
-# 5e. Stage-2 adaptive-CQR (online conformal margin)
-python scripts/calibrate_aci_margin.py
-
-# 5f. Phase-3 optimization study (normal vs optimized, side by side)
-python scripts/run_hpo.py                 # HPO, selection on validation
-python scripts/run_multiseed.py           # 4 models x 3 seeds (mean +/- std)
-python scripts/run_cv.py                  # forward-chaining year CV
-python scripts/run_robust_training.py     # anomaly-augmented training
-python scripts/run_tail_oversampling.py   # tail reweighting + calibration recheck
-python scripts/run_ensemble_intervals.py  # quantile-averaging ensemble
-python scripts/run_composite_anomaly.py   # overlapping faults
-
-# 5g. Phase-4 consolidation: v2 fault sweep + combined study + report tables
-python scripts/run_anomaly_eval.py --catalog v2   # 8-fault sweep (headline models)
-python scripts/run_qlstm.py --catalog v2
-python scripts/run_qtransformer_multi.py --catalog v2
-python scripts/run_lgbm.py --catalog v2
-python scripts/run_qlstm_robust.py                # robust model as a first-class dump
-python scripts/run_robust_plus_cal.py             # model-side x interval-side 4 corners
-python scripts/make_report_tables.py              # leaderboard / robustness / calibration
-
-# Phase reports + figures (figures read the result JSONs, no model runs)
-python scripts/make_phase_figures.py --phase all
-
-# 6. Figures (Phase 1 PDFs + Phase 2 PNGs)
-python scripts/make_figures.py --phase all
-
-# Unit tests for the metrics
-pytest
+# Tables + figures (read result JSONs only)
+python scripts/report/make_report_tables.py
+python scripts/report/make_error_tables.py
+python scripts/report/make_phase_figures.py --phase all
 ```
 
-Results are written to `results/base/` (stage-1 per-model JSON), `results/ablation/`,
-`results/predictions/` (frozen forecasts, gitignored), `results/calibrated/<method>/`
-(stage-2 calibration metrics) and `results/figures/`.
-
-| Script | Output |
+| Output | Where |
 | --- | --- |
-| `run_naive.py` / `run_arima.py` / `run_sarima.py` / `run_lstm.py` | `results/base/naive_seasonal.json`, `arima.json`, `sarima.json`, `lstm.json` |
-| `run_deepar.py` | `results/base/deepar.json` |
-| `run_qtransformer.py` | `results/base/qtransformer.json` |
-| `run_anomaly_eval.py` | `results/base/anomaly_eval.json` (+ `results/predictions/*.npz`) |
-| `run_ablation.py` | `results/ablation.json` (+ `results/ablation/<variant>.json`) |
-| `run_error_analysis.py` | `results/base/error_analysis.json` |
-| `calibrate_static.py` / `calibrate_aci.py` / `calibrate_input_tau.py` / `calibrate_cqr.py` / `calibrate_detect_clean.py` | `results/calibrated/<method>/<model>.json` |
-| `make_figures.py` | `results/figures/*.pdf` (Phase 1), `*.png` (Phase 2) |
+| Stage-1 per-model metrics | `results/base/<model>.json` |
+| Anomaly sweep | `results/base/anomaly_eval.json` (+ `results/predictions/*.npz`) |
+| Stage-2 calibration | `results/calibrated/<method>/<model>.json` |
+| Ablation | `results/ablation/<variant>.json` + `results/ablation/summary.json` |
+| Figures | `results/figures/{main,extra}/*.png` |
 
-Heavy scripts accept `--smoke` for a fast 1-epoch sanity pass.
+</details>
 
-## Reproducibility
+<details>
+<summary><b>Reproducibility — seeds, determinism, tests</b></summary>
 
-**One global seed: `42`.** It is fixed in every component that draws randomness,
-so a given model on a given machine reproduces the same scores on every run.
+**One global seed: `42`** — fixed in every component that draws randomness, so a given model on a
+given machine reproduces the same scores on every run.
 
 | What | Where the seed lives | How it is applied |
 | --- | --- | --- |
-| LSTM baseline | `LstmConfig.seed` (`src/baselines/lstm_baseline.py`) | `torch.manual_seed` + `np.random.seed` at the top of `train_lstm`, before the shuffled `DataLoader` |
-| DeepAR (training) | `DeepARConfig.seed` (`src/models/deepar.py`) | `torch.manual_seed` + `np.random.seed` at the top of `train_deepar` |
-| DeepAR (sampling) | `DeepARConfig.seed` | `sample_forecast` reseeds `torch` (+CUDA) **before drawing trajectories**, so PICP/CRPS are identical across runs |
-| Quantile Transformer | `QTransformerConfig.seed` (`src/models/quantile_transformer.py`) | `torch.manual_seed` + `np.random.seed` at the top of `train_qtransformer` |
-| Anomaly injection / robustness sweep | `SEED = 42` at the top of `scripts/run_anomaly_eval.py` and `scripts/run_error_analysis.py` | `np.random.default_rng(SEED)` per (anomaly type, intensity); injectors in `src/anomaly.py` receive the generator explicitly and never create their own |
-| Figures | `np.random.default_rng(42)` in `scripts/make_figures.py` | passed into the anomaly injectors |
+| Neural models (LSTM/GRU/qLSTM/DLinear/QT/DeepAR) | each `*Config.seed` dataclass field | `torch.manual_seed` + `np.random.seed` at the top of each `train_*` |
+| DeepAR sampling | `DeepARConfig.seed` | `sample_forecast` reseeds torch (+CUDA) before drawing trajectories |
+| Anomaly injection | `SEED = 42` in the eval scripts | `np.random.default_rng(SEED)` per (type, intensity); injectors receive the generator explicitly |
+| Multiseed study | `SEEDS = (42, 7, 2025)` in `scripts/ablation/run_multiseed.py` | mean ± std reported per model |
 
-**To change the seed:** pass a different `seed=` when constructing the config
-(e.g. `DeepARConfig(seed=7)`), or edit the `seed` default in the dataclass; for
-the anomaly/error-analysis scripts edit the `SEED` constant at the top of the file.
+What can still vary: cuDNN kernels are not bit-identical across GPUs/driver versions — on a
+*fixed* machine repeated runs are bit-identical (verified). ARIMA/SARIMA use deterministic MLE.
 
-**What can still vary:**
-- **Hardware / driver / library version.** cuDNN kernels are not guaranteed
-  bit-identical across different GPUs, CUDA/cuDNN versions, or PyTorch builds, so
-  the last few decimals may shift on a different machine. On a *fixed* machine,
-  repeated runs are bit-identical (verified: DeepAR clean PICP/CRPS match exactly
-  between `deepar.json` and `anomaly_eval.json`).
-- **ARIMA / SARIMA** use deterministic MLE fitting (statsmodels) — no seed needed.
-- **Committed figures** under `results/figures/` are rendered from the seeded
-  pipeline and the current result JSONs; re-run `python scripts/make_figures.py
-  --phase all` to regenerate them after any results change.
+**Tests** (`pytest`, CPU-only, no dataset): metrics, window builders, anomaly injectors
+(incl. intensity-scaling linearity), all stage-2 calibrators (e.g. ACI's first window provably
+ignores its own outcome), the hampel filter, the frozen-forecast store, significance helpers, and
+model inference paths.
 
-**Tests.** Unit tests live in `tests/` and cover the metrics, sequence-window
-builders, anomaly injectors (including intensity-scaling linearity), post-hoc
-calibration, the stage-2 calibrators (static/CQR/ACI/input-conditional — e.g.
-ACI's first window provably ignores its own outcome), the hampel
-detect-and-clean filter, the frozen-forecast store, the significance helpers,
-and the DeepAR/Transformer inference paths (including a regression guard on
-the DeepAR conditioning alignment). They are self-contained -- tiny
-random-init models on CPU, no dataset download, no training, no GPU:
+</details>
 
-```bash
-pytest                      # or: pytest tests/test_metrics.py -q
-```
+<details>
+<summary><b>Dataset</b></summary>
 
-The single randomised fixture uses a fixed seed, so the suite is deterministic.
+**Jena Climate 2009–2016** — weather-station data recorded by the Max Planck Institute for
+Biogeochemistry, Jena, Germany. 14 variables sampled every 10 minutes (resampled to hourly here).
+Chronological splits: train 2009–2014, validation 2015, test 2016. See
+[`data/README.md`](data/README.md) for acquisition, the variable table, and the
+leakage classification of the exogenous channels.
 
-## Dataset
-
-**Jena Climate 2009–2016** — recorded by the Max Planck Institute for Biogeochemistry, Jena,
-Germany. 14 weather variables sampled every 10 minutes (we resample to hourly). Forecasting target
-in this study: temperature `T (degC)`. The remaining variables are used as exogenous covariates in
-the multivariate ablation variants — as a future-leaking *oracle* upper bound (DeepAR) and, without
-leakage, as *past covariates* with horizon weather frozen at the origin (see the covariate-handling
-note above).
-
-See `data/README.md` for acquisition details.
+</details>

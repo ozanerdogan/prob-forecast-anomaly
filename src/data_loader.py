@@ -78,6 +78,6 @@ def load_hourly(processed_dir: Path) -> pd.DataFrame:
     path = processed_dir / "jena_hourly.parquet"
     if not path.exists():
         raise FileNotFoundError(
-            f"{path} not found. Run scripts/download_data.py first."
+            f"{path} not found. Run data/download_data.py first."
         )
     return pd.read_parquet(path)

@@ -83,7 +83,7 @@ def main_for_method(method_cls, method_name: str, root: Path) -> None:
     models = args.models or discover_prob_models(pred_dir)
     if not models:
         raise SystemExit(f"no probabilistic prediction dumps found in {pred_dir} "
-                         "(run scripts/run_anomaly_eval.py first)")
+                         "(run scripts/analysis/run_anomaly_eval.py first)")
     for model in models:
         res = calibrate_model(method_cls, method_name, pred_dir, model, args.alpha)
         out_path = out_dir / f"{model}.json"

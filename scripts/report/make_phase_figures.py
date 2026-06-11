@@ -33,10 +33,19 @@ plt.rcParams.update({
 })
 
 METHODS = ("static", "cqr", "aci", "input_tau")
-METHOD_LABEL = {"static": "statik τ", "cqr": "CQR", "aci": "ACI (online)",
-                "input_tau": "girdi-koşullu τ (offline)"}
+METHOD_LABEL = {"static": "static τ", "cqr": "CQR", "aci": "ACI (online)",
+                "input_tau": "input-τ (offline)"}
 METHOD_COLOR = {"raw": "#7f8c8d", "static": "#c0392b", "cqr": "#e67e22",
                 "aci": "#1f4e79", "input_tau": "#27ae60"}
+
+# Paper-facing display names (the report uses these; raw keys stay in JSONs).
+MODEL_LABEL = {"deepar": "DeepAR", "qtransformer": "QT-uni",
+               "qtransformer_multi": "QT-multi", "qlstm": "qLSTM",
+               "qdlinear": "qDLinear", "lgbm": "LightGBM-q", "qrf": "QRF"}
+
+
+def _fault_label(f: str) -> str:
+    return "FGSM" if f == "fgsm" else f.replace("_", " ")
 
 
 def _load_cal(method: str, model: str) -> dict | None:
@@ -78,7 +87,13 @@ def _save(fig, phase: int, name: str) -> None:
         for ax in fig.axes:
             if ax.get_title().startswith("Phase"):
                 ax.set_title("")
-        fig.tight_layout()
+        # tight_layout breaks figures with fig.colorbar(ax=...) axes;
+        # constrained-layout figures manage themselves.
+        if not fig.get_constrained_layout():
+            try:
+                fig.tight_layout()
+            except Exception:
+                pass
         PAPER_DIR.mkdir(parents=True, exist_ok=True)
         fig.savefig(PAPER_DIR / name, dpi=200)
         print(f"  wrote {PAPER_DIR / name} (paper copy)")
@@ -114,7 +129,7 @@ def fig_p1_picp_vs_intensity() -> None:
                     ax.plot(xs, series(m), "o-", color=METHOD_COLOR[m],
                             label=METHOD_LABEL[m])
             ax.axhline(0.9, color="k", lw=0.7, ls=":")
-            ax.set_title(f"{model} — {kind.replace('_', ' ')}")
+            ax.set_title(f"{MODEL_LABEL.get(model, model)} — {_fault_label(kind)}")
             ax.set_ylim(0, 1.0)
             if i == len(kinds) - 1:
                 ax.set_xlabel("intensity (× local σ)")
@@ -171,22 +186,22 @@ def fig_p1_significance() -> None:
     ax.axvline(0, color="k", lw=0.7, ls=":")
     ax.set_yticks(range(len(pairs)))
     ax.set_yticklabels([l for _, l in pairs])
-    ax.set_xlabel("ΔRMSE (negatif = soldaki daha iyi), %95 bootstrap CI")
+    ax.set_xlabel("ΔRMSE (negative = left model better), 95% bootstrap CI")
     ax.set_title("Phase 1 — Significance: LSTM≈QT tie; ensemble gain is real")
     _save(fig, 1, "significance_headline.png")
 
 
 # ------------------------------------------------------------------ phase 2
 FAMILY = {  # model -> (family, deterministic?)
-    "naive_seasonal": ("klasik", True), "arima": ("klasik", True),
-    "sarima": ("klasik", True), "lstm": ("recurrent", True),
+    "naive_seasonal": ("classical", True), "arima": ("classical", True),
+    "sarima": ("classical", True), "lstm": ("recurrent", True),
     "gru": ("recurrent", True), "dlinear": ("linear", True),
     "lgbm": ("tree", False), "qrf": ("tree", False),
     "qlstm": ("recurrent", False), "qdlinear": ("linear", False),
     "deepar": ("AR-likelihood", False), "qtransformer": ("transformer", False),
     "qtransformer_multi": ("transformer", False),
 }
-FAM_COLOR = {"klasik": "#7f8c8d", "recurrent": "#1f4e79", "linear": "#8e44ad",
+FAM_COLOR = {"classical": "#7f8c8d", "recurrent": "#1f4e79", "linear": "#8e44ad",
              "tree": "#27ae60", "AR-likelihood": "#c0392b", "transformer": "#e67e22"}
 
 
@@ -216,7 +231,7 @@ def fig_p2_roster() -> None:
     axes[1].barh([r[0] for r in prob], [r[2] for r in prob],
                  color=[FAM_COLOR[r[3]] for r in prob])
     axes[1].set_xlabel("CRPS")
-    axes[1].set_title("Probabilistik — CRPS")
+    axes[1].set_title("Probabilistic — CRPS")
     axes[1].invert_yaxis()
     fig.suptitle("Phase 2 — 13-model roster (colour = family)", y=1.02)
     _save(fig, 2, "roster_overview.png")
@@ -235,9 +250,9 @@ def fig_p2_paired_families() -> None:
         det_rmse = d1.get("point_rmse", d1.get("rmse"))
         prob_rmse = d2.get("rmse")
         ax.bar(i - width / 2, det_rmse, width, color="#7f8c8d",
-               label="deterministik" if i == 0 else None)
+               label="deterministic" if i == 0 else None)
         ax.bar(i + width / 2, prob_rmse, width, color="#1f4e79",
-               label="probabilistik (medyan)" if i == 0 else None)
+               label="probabilistic (median)" if i == 0 else None)
     ax.set_xticks(range(len(pairs)))
     ax.set_xticklabels([p[2] for p in pairs])
     ax.set_ylabel("RMSE °C")
@@ -356,10 +371,10 @@ def fig_p2_input_value() -> None:
     pi = RES / "base" / "exogenous_only_independent.json"
     indep = json.loads(pi.read_text())["exogenous_only"]["rmse"] if pi.exists() else None
     bars = [
-        ("naive\n(referans)", r.get("naive_seasonal", {}).get("rmse"), "#7f8c8d"),
-        ("bağımsız-only\n(p/rh/wv, T izi YOK)", indep, "#c0392b"),
-        ("exo+proxy\n(VPmax→T sızıntı)", e["rmse"], "#e67e22"),
-        ("sadece T\n(target-only)", r.get("target_only", {}).get("rmse"), "#1f4e79"),
+        ("naive\n(reference)", r.get("naive_seasonal", {}).get("rmse"), "#7f8c8d"),
+        ("independent-only\n(p/rh/wind, no T trace)", indep, "#c0392b"),
+        ("exo+proxy\n(VPmax→T leak)", e["rmse"], "#e67e22"),
+        ("T only\n(target-only)", r.get("target_only", {}).get("rmse"), "#1f4e79"),
         ("T + 13 cov\n(full)", r.get("full_T_plus_cov", {}).get("rmse"), "#27ae60"),
     ]
     bars = [b for b in bars if b[1] is not None]
@@ -488,7 +503,7 @@ def fig_p3_multiseed() -> None:
         ax.scatter([i] * len(vals), vals, s=10, color="#7f8c8d", zorder=3)
     ax.set_xticks(range(len(names)))
     ax.set_xticklabels(names, rotation=15)
-    ax.set_ylabel("RMSE °C (3 seed)")
+    ax.set_ylabel("RMSE °C (3 seeds)")
     ax.set_title("Phase 3 — Seed sensitivity (mean ± std; dots = individual seeds)")
     ax.grid(axis="y", alpha=0.25)
     _save(fig, 3, "multiseed_rmse.png")
@@ -550,7 +565,7 @@ def fig_p3_horizon() -> None:
     ax.axvline(24, color="grey", lw=0.7, ls=":")
     ax.set_xticks(x)
     ax.set_xlabel("forecast horizon (hours)")
-    ax.set_ylabel("hata")
+    ax.set_ylabel("error")
     ax.set_title("Phase 3 — Horizon ablation: error grows with horizon (24h choice)")
     ax.legend(frameon=False)
     ax.grid(alpha=0.25)
@@ -576,7 +591,7 @@ def fig_p3_extreme_quantiles() -> None:
     for l, lev in enumerate(levels):
         ax.axhline(float(lev[:2]) / 100, color="k", lw=0.5, ls=":")
     ax.set_xticks(x)
-    ax.set_xticklabels(["%90", "%95", "%98"])
+    ax.set_xticklabels(["90%", "95%", "98%"])
     ax.set_ylabel("PICP")
     ax.set_ylim(0.7, 1.0)
     ax.set_title("Phase 3 — Extreme quantiles: 90/95/98% intervals (full + extreme deciles)")
@@ -605,43 +620,72 @@ def fig_p3_ensemble_intervals() -> None:
 
 
 # ------------------------------------------------------------------ phase 4
-V2_FAULTS = ("point_spike", "contextual_outlier", "level_shift", "flatline",
-             "drift", "noise_burst", "gap_imputation", "clock_skew", "fgsm")
+# Catalog order follows the mechanism grouping of the report: additive,
+# structural, temporal, adversarial (separator lines between groups).
+V2_FAULTS = ("point_spike", "contextual_outlier", "noise_burst",
+             "level_shift", "drift", "flatline",
+             "gap_imputation", "clock_skew",
+             "fgsm")
+FAULT_GROUP_SEPS = (2.5, 5.5, 7.5)  # after additive / structural / temporal
+
+HEATMAP_MODELS = (("qtransformer_multi", "QT-multi"),
+                  ("lgbm", "LightGBM-quantile (tree)"))
 
 
 def fig_p4_fault_heatmap() -> None:
-    """v2 fault catalog x intensity -> raw PICP, for a headline prob model."""
+    """Fault catalog x intensity -> raw PICP, headline model vs tree contrast.
+
+    Two panels: the multivariate quantile Transformer (gradient model, worst
+    degradation) next to LightGBM-quantile (tree, saturating splits, mildest
+    degradation). White-box FGSM is undefined for the gradient-free tree, so
+    that row renders as hatched n/a cells.
+    """
     p = RES / "base" / "report_tables.json"
     if not p.exists():
         return
     rob = json.loads(p.read_text())["robustness_matrix"]
-    models = [m for m in ("qtransformer_multi", "qlstm", "deepar", "qtransformer")
-              if m in rob]
-    if not models:
+    panels = [(m, label) for m, label in HEATMAP_MODELS if m in rob]
+    if not panels:
         return
-    model = models[0]
-    block = rob[model]
-    faults = [f for f in V2_FAULTS if f"{f}_1.0" in block]
     intens = (1.0, 2.0, 4.0)
-    mat = np.full((len(faults), len(intens)), np.nan)
-    for i, f in enumerate(faults):
-        for j, it in enumerate(intens):
-            s = block.get(f"{f}_{it:.1f}")
-            if s:
-                mat[i, j] = s["picp"]
-    fig, ax = plt.subplots(figsize=(4.6, 4.2))
-    im = ax.imshow(mat, aspect="auto", cmap="RdYlGn", vmin=0.0, vmax=0.95)
-    ax.set_xticks(range(len(intens)))
-    ax.set_xticklabels([f"{i:g}×" for i in intens])
-    ax.set_yticks(range(len(faults)))
-    ax.set_yticklabels(faults)
-    for i in range(len(faults)):
-        for j in range(len(intens)):
-            if not np.isnan(mat[i, j]):
-                ax.text(j, i, f"{mat[i,j]:.2f}", ha="center", va="center", fontsize=7)
-    ax.axhline(2.5, color="k", lw=1.2)  # separates v1 (top 3) from v2 faults
-    ax.set_title(f"Phase 4 — v2 fault catalog, raw PICP ({model})\n(top 3 = v1, bottom 5 = new)")
-    fig.colorbar(im, ax=ax, fraction=0.046, label="PICP (target 0.90)")
+    faults = [f for f in V2_FAULTS
+              if any(f"{f}_1.0" in rob[m] for m, _ in panels)]
+
+    cmap = plt.get_cmap("RdYlGn").copy()
+    cmap.set_bad("#d9d9d9")
+    fig, axes = plt.subplots(1, len(panels), figsize=(4.0 * len(panels), 4.2),
+                             sharey=True, layout="constrained")
+    axes = np.atleast_1d(axes)
+    im = None
+    for ax, (model, label) in zip(axes, panels):
+        block = rob[model]
+        mat = np.full((len(faults), len(intens)), np.nan)
+        for i, f in enumerate(faults):
+            for j, it in enumerate(intens):
+                s = block.get(f"{f}_{it:.1f}")
+                if s:
+                    mat[i, j] = s["picp"]
+        im = ax.imshow(np.ma.masked_invalid(mat), aspect="auto", cmap=cmap,
+                       vmin=0.0, vmax=0.95)
+        ax.set_xticks(range(len(intens)))
+        ax.set_xticklabels([f"{i:g}×" for i in intens])
+        ax.set_yticks(range(len(faults)))
+        ax.set_yticklabels([_fault_label(f) for f in faults])
+        for i in range(len(faults)):
+            for j in range(len(intens)):
+                if np.isnan(mat[i, j]):
+                    ax.text(j, i, "n/a", ha="center", va="center",
+                            fontsize=7, color="#555")
+                else:
+                    ax.text(j, i, f"{mat[i,j]:.2f}", ha="center", va="center",
+                            fontsize=7)
+        for y in FAULT_GROUP_SEPS:
+            if y < len(faults) - 0.5:
+                ax.axhline(y, color="k", lw=1.0)
+        ax.set_title(label, fontsize=9)
+    fig.suptitle("Phase 4 — fault catalog × intensity, raw PICP", y=1.0)
+    fig.colorbar(im, ax=list(axes), fraction=0.046 / len(panels),
+                 label="PICP (target 0.90)")
     _save(fig, 4, "fault_catalog_heatmap.png")
 
 
@@ -710,10 +754,11 @@ def fig_p4_robust_plus_cal() -> None:
                ("robust_raw", "#e67e22", "robust raw"),
                ("robust_aci", "#27ae60", "robust+ACI")]
     fams = rc.get("families", {})
-    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.2, 3.2),
-                                  gridspec_kw={"width_ratios": [1.1, 1]})
+    # stacked layout: the report places this next to another figure, so the
+    # two sub-panels go on top of each other instead of side by side.
+    fig, (ax, ax2) = plt.subplots(2, 1, figsize=(5.2, 5.6))
 
-    # left: qlstm intensity sweep (the canonical four corners)
+    # top: qlstm intensity sweep (the canonical four corners)
     x = np.arange(len(settings))
     w = 0.2
     for k, (key, color, label) in enumerate(corners):
@@ -721,13 +766,15 @@ def fig_p4_robust_plus_cal() -> None:
                w, color=color, label=label)
     ax.axhline(0.9, color="k", lw=0.7, ls=":")
     ax.set_xticks(x)
-    ax.set_xticklabels([s.replace("_", "\n") for s in settings], fontsize=7)
+    ax.set_xticklabels([s.replace("fgsm", "FGSM").replace("_", "\n")
+                        for s in settings], fontsize=7)
     ax.set_ylabel("PICP")
-    ax.set_title("Phase 4 — qLSTM: four corners across intensity", fontsize=9)
-    ax.legend(frameon=False, ncol=2, fontsize=7)
+    ax.set_ylim(0, 1.18)
+    ax.set_title("qLSTM: four corners across intensity", fontsize=9)
+    ax.legend(frameon=False, ncol=2, fontsize=7, loc="upper right")
     ax.grid(axis="y", alpha=0.25)
 
-    # right: robust+ACI at level shift 4x across the whole roster
+    # bottom: robust+ACI at level shift 4x across the whole roster
     if fams:
         order = [f for f in ("qlstm", "qtransformer", "qdlinear", "deepar",
                              "lgbm", "qrf") if f in fams]
@@ -739,9 +786,12 @@ def fig_p4_robust_plus_cal() -> None:
                     [ls4[f][key]["picp"] for f in order], w, color=color)
         ax2.axhline(0.9, color="k", lw=0.7, ls=":")
         ax2.set_xticks(xr)
-        ax2.set_xticklabels(order, rotation=20, fontsize=7)
+        ax2.set_xticklabels([MODEL_LABEL.get(f, f) for f in order],
+                            rotation=15, fontsize=7)
+        ax2.set_ylabel("PICP")
         ax2.set_title("Level shift 4× across the roster", fontsize=9)
         ax2.grid(axis="y", alpha=0.25)
+    fig.suptitle("Phase 4 — model-side and interval-side repairs compose", y=1.0)
     fig.tight_layout()
     _save(fig, 4, "robust_plus_cal.png")
 
@@ -779,7 +829,8 @@ def fig_p5_detect_adapt() -> None:
 
     faults = ("level_shift_4.0", "drift_4.0", "fgsm_4.0", "flatline_4.0",
               "clock_skew_4.0")
-    short = [f.rsplit("_", 1)[0].replace("_", "\n") for f in faults]
+    short = [("FGSM" if f.startswith("fgsm") else
+              f.rsplit("_", 1)[0].replace("_", "\n")) for f in faults]
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8.6, 3.6))
 
     width = 0.16
@@ -811,7 +862,8 @@ def fig_p5_detect_adapt() -> None:
         aucs = [ps.get(f"{kind}_{i}", {}).get("auc") for i in intens]
         if any(a is None for a in aucs):
             continue
-        ax2.plot([1, 2, 4], aucs, marker="o", ms=3, lw=1.2, label=kind)
+        ax2.plot([1, 2, 4], aucs, marker="o", ms=3, lw=1.2,
+                 label=_fault_label(kind))
     ax2.axhline(0.5, color="k", lw=0.8, ls=":")
     ax2.set_xscale("log", base=2)
     ax2.set_xticks([1, 2, 4], ["1×", "2×", "4×"])
@@ -830,7 +882,7 @@ PHASES = {
     2: (fig_p2_roster, fig_p2_paired_families, fig_p2_raw_robustness,
         fig_p2_permutation_importance, fig_p2_covariate_full, fig_p2_covariate_independent, fig_p2_input_value, fig_p2_error_breakdowns, fig_p2_natural_extremes),
     3: (fig_p3_hpo, fig_p3_multiseed, fig_p3_cv, fig_p3_robust_training,
-        fig_p3_ensemble_intervals),
+        fig_p3_horizon, fig_p3_extreme_quantiles, fig_p3_ensemble_intervals),
     4: (fig_p4_fault_heatmap, fig_p4_resolution, fig_p4_robust_generalize, fig_p4_robust_plus_cal, fig_p4_leaderboard),
     5: (fig_p5_detect_adapt,),
 }

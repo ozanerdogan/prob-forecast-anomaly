@@ -324,7 +324,7 @@ def fig_covariate_full() -> None:
     ax.barh(cols, vals, color=cs)
     ax.set_xlabel("ΔCRPS (channel shuffled across windows)")
     ax.set_title("Full 13-covariate importance (QT, test)\n"
-                 "red = temperature-derived (partial leakage) · green = independent sensor · grey = calendar")
+                 "red = temperature-derived (T recoverable) · green = independent sensor · grey = calendar")
     ax.grid(axis="x", alpha=0.25)
     _save(fig, "covariate_importance_full.png")
 
@@ -358,7 +358,7 @@ def fig_covariate_independent() -> None:
             ax.text(v + 0.05, i, f"{v:.2f}", va="center", fontsize=7)
     ax.set_xlabel("ΔCRPS (channel shuffled across windows)")
     # narrative title as suptitle so the --paper copy drops it (caption in LaTeX)
-    fig.suptitle("Independent covariate importance (leakage-free)\n"
+    fig.suptitle("Independent covariate importance\n"
                  "red = target T (dominant) · green = independent sensor · grey = calendar",
                  y=1.06)
     ax.grid(axis="x", alpha=0.25)
@@ -376,8 +376,8 @@ def fig_input_value() -> None:
     bars = [
         ("seasonal-naive\n(reference)", r.get("naive_seasonal", {}).get("rmse"), "#7f8c8d"),
         ("independent\nsensors only", indep, "#c0392b"),
-        ("exogenous +\nT-proxies (leaky)", e["rmse"], "#e67e22"),
         ("target T\nonly", r.get("target_only", {}).get("rmse"), "#1f4e79"),
+        ("exogenous +\nT-proxies", e["rmse"], "#e67e22"),
         ("T + all 13\ncovariates", r.get("full_T_plus_cov", {}).get("rmse"), "#27ae60"),
     ]
     bars = [b for b in bars if b[1] is not None]
@@ -398,19 +398,21 @@ def fig_input_value() -> None:
 
 
 def fig_error_breakdowns() -> None:
-    """Error anatomy for Sect. 5.2: horizon, year, temperature, season."""
+    """Error anatomy for Sect. 5.2: horizon, temperature, season.
+
+    The year axis (forward-chaining CV) stays out by design: it is one
+    sentence in the text, and the standalone cv_fold_variance figure remains
+    in figures/extra.
+    """
     p = RES / "base" / "error_tables_full.json"
     if not p.exists():
         return
     d = json.loads(p.read_text())
-    cvp = RES / "base" / "cv_forward_chaining.json"
-    cv = json.loads(cvp.read_text()) if cvp.exists() else None
     # roster models only: robust-trained variants belong to the repair story
     models = sorted((m for m in d["per_horizon"] if m in FAMILY),
                     key=lambda m: np.mean(d["per_horizon"][m]))
     best, worst = models[0], models[-1]
-    n = 4 if cv else 3
-    fig, axes = plt.subplots(1, n, figsize=(3.3 * n, 3.4),
+    fig, axes = plt.subplots(1, 3, figsize=(9.9, 3.4),
                              layout="constrained")
 
     # panel 1: per-horizon curves (highlight best + worst, grey the rest)
@@ -428,36 +430,22 @@ def fig_error_breakdowns() -> None:
     ax.legend(frameon=False, fontsize=7)
     ax.grid(alpha=0.25)
 
-    # panel 2: year-based forward-chaining CV
-    if cv:
-        axc = axes[1]
-        for m, block in cv["models"].items():
-            years = sorted(block["folds"])
-            axc.plot([int(y) for y in years],
-                     [block["folds"][y]["rmse"] for y in years],
-                     "o-", ms=3, label=MODEL_LABEL.get(m, m))
-        axc.set_xticks([int(y) for y in years])
-        axc.set_xlabel("test year (expanding train)")
-        axc.set_title("By year (forward-chaining CV)")
-        axc.legend(frameon=False, fontsize=6.5)
-        axc.grid(alpha=0.25)
-
-    # panels 3+4: by-temperature and by-season heatmaps (shared model axis)
+    # panels 2+3: by-temperature and by-season heatmaps (shared model axis)
     names = [MODEL_LABEL.get(m, m) for m in models]
-    for ax_h, key, order, cmap in ((axes[-2], "by_temperature", d["temp_order"], "YlOrRd"),
-                                   (axes[-1], "by_season", d["season_order"], "YlGnBu")):
+    for ax_h, key, order, cmap in ((axes[1], "by_temperature", d["temp_order"], "YlOrRd"),
+                                   (axes[2], "by_season", d["season_order"], "YlGnBu")):
         mat = np.array([[d[key][m].get(c, np.nan) for c in order] for m in models])
         im = ax_h.imshow(mat, aspect="auto", cmap=cmap)
         ax_h.set_xticks(range(len(order)))
         ax_h.set_xticklabels(order, fontsize=7)
         ax_h.set_yticks(range(len(models)))
-        ax_h.set_yticklabels(names if ax_h is axes[-2] else [""] * len(models),
+        ax_h.set_yticklabels(names if ax_h is axes[1] else [""] * len(models),
                              fontsize=6)
         ax_h.set_title("RMSE by temperature range" if key == "by_temperature"
                        else "RMSE by season")
         fig.colorbar(im, ax=ax_h, fraction=0.046)
 
-    fig.suptitle("Full-roster error anatomy (horizon · year · temperature · season)")
+    fig.suptitle("Full-roster error anatomy (horizon · temperature · season)")
     _save(fig, "error_breakdowns_full.png")
 
 

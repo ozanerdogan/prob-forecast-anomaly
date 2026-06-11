@@ -29,27 +29,32 @@ def discover_prob_models(pred_dir: Path) -> list[str]:
 
 
 def calibrate_model(method_cls, method_name: str, pred_dir: Path, model: str,
-                    alpha: float) -> dict:
+                    alpha: float, return_calibrator: bool = False):
     cal = method_cls(alpha)
     val_clean = load_predictions(prediction_path(pred_dir, model, "val", "clean"))
     levels = val_clean["levels"]
 
-    if getattr(cal, "fit_on", "val_clean") == "val_all":
+    fit_mode = getattr(cal, "fit_on", "val_clean")
+    if fit_mode in ("val_all", "val_labeled"):
         fit_settings = [s for s in list_settings(pred_dir, model, "val")
                         if not s.endswith("__cleaned")]
-        ys, qs, cs = [], [], []
+        ys, qs, cs, labs = [], [], [], []
         for s in fit_settings:
             d = load_predictions(prediction_path(pred_dir, model, "val", s))
             ys.append(d["y_true"])
             qs.append(d["quantiles"])
             cs.append(d["context"])
+            labs.append(np.full(len(d["y_true"]), 0 if s == "clean" else 1))
         y_fit, q_fit, c_fit = np.concatenate(ys), np.concatenate(qs), np.concatenate(cs)
+        fit_kwargs = ({"labels_val": np.concatenate(labs)}
+                      if fit_mode == "val_labeled" else {})
     else:
         fit_settings = ["clean"]
         y_fit, q_fit = val_clean["y_true"], val_clean["quantiles"]
         c_fit = val_clean.get("context")
+        fit_kwargs = {}
 
-    cal.fit(y_fit, q_fit, levels, context_val=c_fit)
+    cal.fit(y_fit, q_fit, levels, context_val=c_fit, **fit_kwargs)
 
     out = {"model": model, "method": method_name, "alpha": alpha,
            "fit_on": fit_settings, "params": cal.params(), "settings": {}}
@@ -64,7 +69,7 @@ def calibrate_model(method_cls, method_name: str, pred_dir: Path, model: str,
         out["settings"][s] = {"before": before, "after": after}
         print(f"  {model:13s} {s:26s} picp {before['picp']:.3f} -> {after['picp']:.3f}"
               f"  mis {before['mis']:6.2f} -> {after['mis']:6.2f}")
-    return out
+    return (out, cal) if return_calibrator else out
 
 
 def main_for_method(method_cls, method_name: str, root: Path) -> None:

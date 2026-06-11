@@ -77,6 +77,9 @@ before/after deltas are attributable to the repair method alone. Compared regime
   (the feedback actually available in deployment),
 - **input-conditional τ** — offline, fit on validation windows with synthetically injected
   anomalies; no test feedback of any kind,
+- **detect-then-adapt** — an explicit anomaly detector gates the repair: clean windows keep the
+  sharp static regime, detected windows get an anomaly-conditional spread (best offline policy;
+  beats even online ACI on faults with unnatural signatures),
 - **hampel detect-and-clean** — input-side contrast; catches spikes, blind to level shift/drift.
 
 A **natural-extremes slice** (real cold fronts / warm-ups, no injection) measures the false-alarm
@@ -166,6 +169,7 @@ python scripts/calibrate/calibrate_aci.py
 python scripts/calibrate/calibrate_aci_margin.py
 python scripts/calibrate/calibrate_input_tau.py
 python scripts/calibrate/calibrate_detect_clean.py
+python scripts/calibrate/calibrate_detect_adapt.py   # detect-then-adapt + detection report
 
 # Studies
 python scripts/analysis/run_significance.py

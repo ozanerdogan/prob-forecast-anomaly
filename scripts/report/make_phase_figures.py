@@ -56,6 +56,7 @@ MAIN_FIGURES = {
     "multiseed_rmse.png",
     "permutation_importance.png",
     "natural_extremes_falsealarm.png",
+    "detect_then_adapt.png",
 }
 
 
@@ -726,6 +727,67 @@ def fig_p4_leaderboard() -> None:
     _save(fig, 4, "final_leaderboard.png")
 
 
+# ------------------------------------------------------------------ phase 5
+def fig_p5_detect_adapt() -> None:
+    """Detect-then-adapt: 4-regime repair comparison + detection ladder."""
+    det_path = RES / "base" / "detect_adapt_detection.json"
+    if not det_path.exists():
+        return
+    det = json.loads(det_path.read_text())["models"].get("qlstm")
+    regimes = ("static", "aci", "input_tau", "detect_adapt")
+    labels = ("static τ", "ACI (online)", "input-τ", "detect-then-adapt")
+    cals = {r: _load_cal(r, "qlstm") for r in regimes}
+    if det is None or any(v is None for v in cals.values()):
+        return
+
+    faults = ("level_shift_4.0", "drift_4.0", "fgsm_4.0", "flatline_4.0",
+              "clock_skew_4.0")
+    short = [f.rsplit("_", 1)[0].replace("_", "\n") for f in faults]
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8.6, 3.6))
+
+    width = 0.16
+    xs = np.arange(len(faults))
+    colors = ("#9aa5b1", "#1f4e79", "#7aa6c2", "#c0504d")
+    raw = [cals["static"]["settings"][f]["before"]["picp"] for f in faults]
+    ax1.bar(xs - 2 * width, raw, width, label="raw", color="#d9d9d9")
+    for i, (r, lab, col) in enumerate(zip(regimes, labels, colors)):
+        vals = [cals[r]["settings"][f]["after"]["picp"] for f in faults]
+        ax1.bar(xs + (i - 1) * width, vals, width, label=lab, color=col)
+    ax1.axhline(0.9, color="k", lw=0.8, ls="--")
+    ax1.set_xticks(xs, short, fontsize=7)
+    ax1.set_ylim(0, 1.12)
+    ax1.set_ylabel("PICP (target 0.90)")
+    ax1.set_title("Repair per regime (qLSTM, 4× intensity)", fontsize=9)
+    ax1.legend(fontsize=6.5, ncols=3, loc="upper center", frameon=False)
+    clean_mis = {r: cals[r]["settings"]["clean"]["after"]["mis"] for r in regimes}
+    raw_mis = cals["static"]["settings"]["clean"]["before"]["mis"]
+    ax1.text(0.5, -0.24,
+             f"clean-data width cost (MIS): raw {raw_mis:.1f} | " +
+             " | ".join(f"{l.split()[0]} {clean_mis[r]:.1f}"
+                        for r, l in zip(regimes, labels)),
+             transform=ax1.transAxes, ha="center", fontsize=6.5)
+
+    ps = det["per_setting"]
+    kinds = sorted({k.rsplit("_", 1)[0] for k in ps})
+    intens = ("1.0", "2.0", "4.0")
+    for kind in kinds:
+        aucs = [ps.get(f"{kind}_{i}", {}).get("auc") for i in intens]
+        if any(a is None for a in aucs):
+            continue
+        ax2.plot([1, 2, 4], aucs, marker="o", ms=3, lw=1.2, label=kind)
+    ax2.axhline(0.5, color="k", lw=0.8, ls=":")
+    ax2.set_xscale("log", base=2)
+    ax2.set_xticks([1, 2, 4], ["1×", "2×", "4×"])
+    ax2.set_xlabel("fault intensity")
+    ax2.set_ylabel("detection AUC vs clean test")
+    ax2.set_title("Detectability scales with severity", fontsize=9)
+    ax2.legend(fontsize=6, ncols=2)
+    fig.suptitle("Phase 5 — Detect-then-adapt: gated repair + detection quality",
+                 fontsize=10)
+    fig.tight_layout()
+    _save(fig, 5, "detect_then_adapt.png")
+
+
 PHASES = {
     1: (fig_p1_picp_vs_intensity, fig_p1_mis_ls4, fig_p1_significance),
     2: (fig_p2_roster, fig_p2_paired_families, fig_p2_raw_robustness,
@@ -733,14 +795,15 @@ PHASES = {
     3: (fig_p3_hpo, fig_p3_multiseed, fig_p3_cv, fig_p3_robust_training,
         fig_p3_ensemble_intervals),
     4: (fig_p4_fault_heatmap, fig_p4_resolution, fig_p4_robust_generalize, fig_p4_robust_plus_cal, fig_p4_leaderboard),
+    5: (fig_p5_detect_adapt,),
 }
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--phase", default="all", choices=("1", "2", "3", "4", "all"))
+    ap.add_argument("--phase", default="all", choices=("1", "2", "3", "4", "5", "all"))
     args = ap.parse_args()
-    phases = (1, 2, 3, 4) if args.phase == "all" else (int(args.phase),)
+    phases = (1, 2, 3, 4, 5) if args.phase == "all" else (int(args.phase),)
     for ph in phases:
         print(f"Phase {ph} figures:")
         for fn in PHASES[ph]:

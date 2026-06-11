@@ -27,6 +27,12 @@ where ``shift``/``scale`` may be scalars (static), per-window vectors
                       from context features to the per-window required scale,
                       fit ONLY on validation windows (clean + synthetically
                       injected), so no test feedback of any kind is used.
+  - ``DetectAdaptTau``: detect-then-adapt — an explicit anomaly detector
+                      (logistic, on context statistics) gates the repair:
+                      tau = (1-s)*tau_clean + s*tau_anom(context). Clean
+                      windows keep the sharp static regime; the anomaly
+                      regime only enters when the detector fires. Fit on the
+                      same labelled validation protocol as InputTau.
 """
 from __future__ import annotations
 
@@ -360,3 +366,180 @@ class InputTau:
 
     def params(self) -> dict:
         return {"n_features": 6, "regressor": "HistGradientBoostingRegressor"}
+
+
+class DetectAdaptTau:
+    """Detect-then-adapt: an explicit anomaly detector gates the spread repair.
+
+    Two stages, both fit ONLY on validation windows (clean + synthetically
+    injected — the same leakage-free protocol as InputTau):
+
+      1. DETECT — a small gradient-boosted classifier on cheap context
+         statistics returns the probability ``s`` that the window's input is
+         contaminated. (A linear/logistic detector fails here by design: the
+         anomaly class is heterogeneous — spikes RAISE the dispersion
+         statistics while flatlines LOWER them — so "anomalous" is
+         non-monotone in every feature and needs a non-linear boundary.)
+      2. ADAPT  — the spread scale blends two regimes by that probability,
+
+             tau(w) = (1 - s_w) * tau_clean + s_w * tau_anom(w),
+
+         where ``tau_clean`` is the scalar validation-clean spread temperature
+         (sharp intervals when nothing is wrong) and ``tau_anom(w)`` is an
+         anomaly-conditional regressor fit only on the injected validation
+         windows (how much repair a contaminated window needs).
+
+    Contrast with the always-on repairs: InputTau applies one implicit
+    regressor everywhere and pays a width cost on clean inputs; ACI reacts
+    only after coverage is already lost. Here the clean regime is explicitly
+    preserved unless the detector fires.
+    """
+
+    name = "detect_adapt"
+    fit_on = "val_labeled"
+
+    def __init__(self, alpha: float, random_state: int = 42):
+        self.alpha = alpha
+        self.random_state = random_state
+        self.detector_ = None
+        self.regressor_ = None
+        self.tau_clean_: float | None = None
+        self.ref_profile_: np.ndarray | None = None
+
+    def features(self, context: np.ndarray) -> np.ndarray:
+        """InputTau's 6 context statistics + 6 fault-mechanism features.
+
+        The extra features each target a fault family the dispersion
+        statistics miss: hampel outlier count / largest correction (isolated
+        spikes), max 12h block-mean step and a CUSUM statistic (level shifts
+        at an arbitrary changepoint), the absolute tail-24h slope (drift
+        ramps), and — once fit — the correlation with the mean clean
+        validation profile (clock skew misaligns the diurnal cycle; the
+        stride-24 grid keeps all windows phase-aligned, so a reference
+        profile is meaningful).
+        """
+        from src.cleaning import hampel_clean
+
+        c = np.asarray(context, dtype=float)
+        n, length = c.shape
+        base = InputTau.features(c)
+        diff = np.abs(c - hampel_clean(c))
+
+        nb = length // 12
+        block_means = c[:, :nb * 12].reshape(n, nb, 12).mean(axis=2)
+        step = np.abs(np.diff(block_means, axis=1)).max(axis=1)
+        z = c - c.mean(axis=1, keepdims=True)
+        cusum = np.abs(np.cumsum(z, axis=1)).max(axis=1) / length
+        tail = c[:, -24:]
+        t = np.arange(tail.shape[1]) - (tail.shape[1] - 1) / 2.0
+        slope = np.abs((tail * t).sum(axis=1) / (t * t).sum())
+
+        cols = [base, (diff > 1e-9).sum(axis=1), diff.max(axis=1),
+                step, cusum, slope]
+        if self.ref_profile_ is not None:
+            rp = self.ref_profile_ - self.ref_profile_.mean()
+            denom = c.std(axis=1) * rp.std() + 1e-9
+            corr = (z * rp).mean(axis=1) / denom
+            cols.append(corr)
+        return np.column_stack(cols)
+
+    def fit(self, y_val, q_val, levels, context_val=None, labels_val=None
+            ) -> "DetectAdaptTau":
+        from sklearn.ensemble import (HistGradientBoostingClassifier,
+                                      HistGradientBoostingRegressor)
+
+        if context_val is None or labels_val is None:
+            raise ValueError(
+                "DetectAdaptTau.fit needs validation contexts and "
+                "clean/injected labels")
+        lab = np.asarray(labels_val, dtype=int)
+        if lab.min() == lab.max():
+            raise ValueError("labels_val must contain both clean (0) and "
+                             "injected (1) windows")
+        # mean clean profile first -- the feature builder needs it
+        self.ref_profile_ = np.asarray(context_val, dtype=float)[lab == 0].mean(axis=0)
+        x = self.features(context_val)
+        clean = lab == 0
+        # Raw probabilities sit near 0.5 even on clean windows (every clean
+        # window has corrupted twins labelled 1; the balanced reweighting
+        # makes the contradiction land mid-scale), so blending on the raw
+        # score would widen clean intervals. The gate maps [q90, q99] of the
+        # UNSEEN-clean score distribution to [0, 1]: ~90% of clean windows
+        # keep tau_clean exactly, anything scoring above the clean range
+        # engages the anomaly regime fully. Anchoring needs care: in-sample
+        # clean scores are deflated when few twins exist (the classifier
+        # memorises the clean window), and naive K-fold OOF saturates to 1
+        # (the held-out clean window's corrupted twins remain in training).
+        # So the split is GROUP-AWARE: a random 20% of base windows — clean
+        # AND all their corrupted twins — never enter detector training, and
+        # the gate is anchored on those truly unseen clean scores. The 20%
+        # is drawn at random (seeded) rather than as the chronological tail:
+        # a tail block is all late-autumn windows, which an
+        # earlier-months-only detector scores as out-of-distribution
+        # (seasonal confound), saturating the anchor.
+        n0 = int(clean.sum())
+        if len(lab) % n0 == 0:
+            groups = np.tile(np.arange(n0), len(lab) // n0)
+        else:  # unequal setting blocks: degrade to per-row groups
+            groups = np.arange(len(lab))
+        rng = np.random.default_rng(self.random_state)
+        n_groups = int(groups.max()) + 1
+        ho = rng.choice(n_groups, size=max(1, int(round(0.2 * n_groups))),
+                        replace=False)
+        held = np.isin(groups, ho)
+        self.detector_ = HistGradientBoostingClassifier(
+            class_weight="balanced", random_state=self.random_state,
+            max_iter=300, learning_rate=0.05,
+        ).fit(x[~held], lab[~held])
+        s_anchor = self.detector_.predict_proba(x[held & clean])[:, 1]
+        self.gate_lo_ = float(np.quantile(s_anchor, 0.90))
+        self.gate_hi_ = max(float(np.quantile(s_anchor, 0.99)),
+                            self.gate_lo_ + 1e-3)
+
+        self.tau_clean_ = fit_spread_temperature(
+            np.asarray(y_val)[clean].reshape(-1),
+            np.asarray(q_val)[clean].reshape(-1, len(levels)),
+            np.asarray(levels),
+        )
+        t = needed_tau(np.asarray(y_val)[~clean], np.asarray(q_val)[~clean],
+                       levels, self.alpha)
+        self.regressor_ = HistGradientBoostingRegressor(
+            random_state=self.random_state, max_iter=300, learning_rate=0.05
+        ).fit(x[~clean], t)
+        return self
+
+    def anomaly_score(self, context) -> np.ndarray:
+        """Per-window contamination probability s in [0, 1] (raw, ungated)."""
+        return self.detector_.predict_proba(self.features(context))[:, 1]
+
+    def gate(self, s: np.ndarray) -> np.ndarray:
+        """Map raw scores through the clean-anchored ramp to [0, 1]."""
+        s = np.asarray(s, dtype=float)
+        return np.clip((s - self.gate_lo_) / (self.gate_hi_ - self.gate_lo_),
+                       0.0, 1.0)
+
+    def blend(self, g: np.ndarray, tau_anom: np.ndarray) -> np.ndarray:
+        """Gated mix of the clean and anomaly regimes."""
+        g = np.asarray(g, dtype=float)
+        tau = (1.0 - g) * self.tau_clean_ \
+            + g * np.asarray(tau_anom, dtype=float)
+        return np.clip(tau, TAU_MIN, TAU_MAX)
+
+    def apply(self, y_true, q, levels, context=None) -> np.ndarray:
+        if context is None:
+            raise ValueError("DetectAdaptTau.apply needs the test contexts")
+        x = self.features(context)
+        s = self.detector_.predict_proba(x)[:, 1]
+        g = self.gate(s)
+        tau_anom = np.clip(self.regressor_.predict(x), TAU_MIN, TAU_MAX)
+        tau = self.blend(g, tau_anom)
+        self.last_score_ = s
+        self.last_gate_ = g
+        self.last_tau_ = tau
+        return transform_quantiles(q, levels, tau)
+
+    def params(self) -> dict:
+        return {"tau_clean": self.tau_clean_, "n_features": 12,
+                "gate": [self.gate_lo_, self.gate_hi_],
+                "detector": "HistGradientBoostingClassifier(class_weight=balanced)",
+                "regressor": "HistGradientBoostingRegressor"}

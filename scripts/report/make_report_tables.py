@@ -31,7 +31,7 @@ BASE = ROOT / "results" / "base"
 CAL = ROOT / "results" / "calibrated"
 ALPHA = 0.1
 TABLES = ROOT / "report" / "tables"
-CAL_METHODS = ("static", "cqr", "aci", "input_tau", "aci_margin")
+CAL_METHODS = ("static", "cqr", "aci", "input_tau", "aci_margin", "detect_adapt")
 
 ROSTER = ("naive_seasonal", "lstm", "gru", "dlinear", "deepar", "qtransformer",
           "qtransformer_multi", "qlstm", "qdlinear", "lgbm", "qrf", "qlstm_robust")
@@ -141,6 +141,53 @@ def write_markdown(lb, rob, cal):
     (TABLES / "calibration_recovery.md").write_text("\n".join(lines) + "\n")
 
 
+def write_detect_adapt(cal):
+    """4-regime policy comparison + the detection-quality ladder."""
+    det_path = BASE / "detect_adapt_detection.json"
+    if not det_path.exists() or "qlstm" not in cal:
+        return
+    det = json.loads(det_path.read_text())["models"]
+
+    regimes = ("static", "aci", "input_tau", "detect_adapt")
+    faults = ("level_shift_4.0", "drift_4.0", "fgsm_4.0", "flatline_4.0",
+              "clock_skew_4.0", "noise_burst_4.0")
+    lines = ["# Detect-then-adapt — policy comparison (qlstm)\n",
+             "Coverage repair per regime; clean row shows the width cost "
+             "(MIS, lower = sharper).\n",
+             "| Setting | raw | " + " | ".join(regimes) + " |",
+             "|---|" + "---|" * (len(regimes) + 1)]
+    methods = cal["qlstm"]
+    row = ["| clean MIS | "
+           + _fmt(methods["static"]["clean"]["before"]["mis"], 2) + " | "
+           + " | ".join(_fmt(methods.get(r, {}).get("clean", {})
+                             .get("after", {}).get("mis"), 2) for r in regimes) + " |"]
+    lines += row
+    for f in faults:
+        cells = []
+        raw = None
+        for r in regimes:
+            s = methods.get(r, {}).get(f)
+            if s is None:
+                cells.append("-")
+                continue
+            raw = s["before"]["picp"]
+            cells.append(_fmt(s["after"]["picp"]))
+        lines.append(f"| {f} PICP | {_fmt(raw)} | " + " | ".join(cells) + " |")
+
+    lines += ["\n# Detection quality by fault kind and intensity (qlstm, AUC "
+              "vs clean-test)\n",
+              "| Fault | 1.0 | 2.0 | 4.0 |", "|---|---|---|---|"]
+    ps = det["qlstm"]["per_setting"]
+    kinds = sorted({k.rsplit("_", 1)[0] for k in ps})
+    for kind in kinds:
+        cells = [_fmt(ps.get(f"{kind}_{i}", {}).get("auc"), 2)
+                 for i in ("1.0", "2.0", "4.0")]
+        lines.append(f"| {kind} | " + " | ".join(cells) + " |")
+    far = det["qlstm"]["clean_false_alarm_rate"]
+    lines.append(f"\nClean false-alarm rate (any repair engagement): {far:.3f}")
+    (TABLES / "detect_adapt.md").write_text("\n".join(lines) + "\n")
+
+
 def main():
     lb = clean_leaderboard()
     rob = robustness_matrix()
@@ -150,6 +197,7 @@ def main():
         {"clean_leaderboard": lb, "robustness_matrix": rob,
          "calibration_matrix": cal, "alpha": ALPHA}, indent=2))
     write_markdown(lb, rob, cal)
+    write_detect_adapt(cal)
     print(f"leaderboard: {len(lb)} models | robustness: {len(rob)} | calibration: {len(cal)}")
     print(f"tables -> {TABLES}/  + results/base/report_tables.json")
 

@@ -57,9 +57,13 @@ def _scores(model, setting, levels, cal=None):
     return interval_metrics(d["y_true"], np.asarray(q), levels, ALPHA)
 
 
-# model families with a normal + robust dump pair
+# model families with a normal + robust dump pair (full probabilistic roster)
 PAIRS = (("qlstm", "qlstm", "qlstm_robust"),
-         ("qtransformer", "qtransformer", "qtransformer_robust"))
+         ("qtransformer", "qtransformer", "qtransformer_robust"),
+         ("qdlinear", "qdlinear", "qdlinear_robust"),
+         ("deepar", "deepar", "deepar_robust"),
+         ("lgbm", "lgbm", "lgbm_robust"),
+         ("qrf", "qrf", "qrf_robust"))
 
 
 def _corners(normal, robust):
@@ -67,6 +71,10 @@ def _corners(normal, robust):
     levels_r, aci_r, itau_r = _fit_calibrators(robust)
     block = {}
     for s in SETTINGS:
+        # trees have no gradient -> no fgsm dumps; skip what either side lacks
+        if not (prediction_path(PRED, normal, "test", s).exists()
+                and prediction_path(PRED, robust, "test", s).exists()):
+            continue
         block[s] = {
             "normal_raw": _scores(normal, s, levels_n),
             "normal_aci": _scores(normal, s, levels_n, aci_n),

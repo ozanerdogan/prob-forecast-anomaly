@@ -1,0 +1,15 @@
+{
+  "model": "deepar_robust",
+  "target": "T (degC)",
+  "epochs": 12,
+  "seed": 42,
+  "device": "cuda",
+  "smoke": false,
+  "augment": "p=0.5 per batch {spike,outlier,level_shift}x{1,2,4}",
+  "catalog": "v2",
+  "rmse": 4.403040903595213,
+  "picp": 0.838091922005571,
+  "mpiw": 12.834369218558548,
+  "mis": 18.026890449884345,
+  "pinball": 0.9898605409413036
+}

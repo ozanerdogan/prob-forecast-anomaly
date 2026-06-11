@@ -1,0 +1,14 @@
+{
+  "n_predictions": 8616,
+  "crps": 1.3242294030103472,
+  "pinball": 0.6621147015051736,
+  "picp": 0.9233983286908078,
+  "mpiw": 10.5275294412583,
+  "mis": 12.60425315977456,
+  "picp_alpha": 0.9,
+  "rmse": 3.0050870693908376,
+  "mae": 2.2583022658153302,
+  "model": "qrf_robust",
+  "augment": "p=0.5 {spike,outlier,level_shift}x{1,2,4}, seed 42",
+  "smoke": false
+}

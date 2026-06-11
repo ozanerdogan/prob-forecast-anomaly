@@ -705,13 +705,17 @@ def fig_p4_robust_plus_cal() -> None:
     rc = json.loads(p.read_text())
     settings = [s for s in ("clean", "level_shift_1.0", "level_shift_2.0",
                             "level_shift_4.0", "fgsm_4.0") if s in rc["settings"]]
-    corners = [("normal_raw", "#7f8c8d", "normal ham"),
+    corners = [("normal_raw", "#7f8c8d", "normal raw"),
                ("normal_aci", "#1f4e79", "normal+ACI"),
-               ("robust_raw", "#e67e22", "robust ham"),
+               ("robust_raw", "#e67e22", "robust raw"),
                ("robust_aci", "#27ae60", "robust+ACI")]
+    fams = rc.get("families", {})
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.2, 3.2),
+                                  gridspec_kw={"width_ratios": [1.1, 1]})
+
+    # left: qlstm intensity sweep (the canonical four corners)
     x = np.arange(len(settings))
     w = 0.2
-    fig, ax = plt.subplots(figsize=(7.2, 3.0))
     for k, (key, color, label) in enumerate(corners):
         ax.bar(x + (k - 1.5) * w, [rc["settings"][s][key]["picp"] for s in settings],
                w, color=color, label=label)
@@ -719,9 +723,26 @@ def fig_p4_robust_plus_cal() -> None:
     ax.set_xticks(x)
     ax.set_xticklabels([s.replace("_", "\n") for s in settings], fontsize=7)
     ax.set_ylabel("PICP")
-    ax.set_title("Phase 4 — Model-side (robust) × interval-side (ACI): 4 corners")
+    ax.set_title("Phase 4 — qLSTM: four corners across intensity", fontsize=9)
     ax.legend(frameon=False, ncol=2, fontsize=7)
     ax.grid(axis="y", alpha=0.25)
+
+    # right: robust+ACI at level shift 4x across the whole roster
+    if fams:
+        order = [f for f in ("qlstm", "qtransformer", "qdlinear", "deepar",
+                             "lgbm", "qrf") if f in fams]
+        ls4 = {f: fams[f].get("level_shift_4.0") for f in order}
+        order = [f for f in order if ls4[f]]
+        xr = np.arange(len(order))
+        for k, (key, color, label) in enumerate(corners):
+            ax2.bar(xr + (k - 1.5) * w,
+                    [ls4[f][key]["picp"] for f in order], w, color=color)
+        ax2.axhline(0.9, color="k", lw=0.7, ls=":")
+        ax2.set_xticks(xr)
+        ax2.set_xticklabels(order, rotation=20, fontsize=7)
+        ax2.set_title("Level shift 4× across the roster", fontsize=9)
+        ax2.grid(axis="y", alpha=0.25)
+    fig.tight_layout()
     _save(fig, 4, "robust_plus_cal.png")
 
 

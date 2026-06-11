@@ -43,3 +43,25 @@ def make_augmenter(p: float = 0.5, seed: int = 42, intensities=(1.0, 2.0, 4.0)):
         return torch.from_numpy(x)
 
     return augment
+
+
+def augment_windows(x: np.ndarray, p: float = 0.5, seed: int = 42,
+                    intensities=(1.0, 2.0, 4.0), batch: int = 512) -> np.ndarray:
+    """One-shot numpy variant of ``make_augmenter`` for batch-less trainers.
+
+    Tree libraries (LightGBM, QRF) fit on a fixed table, so the per-batch
+    torch hook cannot apply; instead the training windows are corrupted once
+    up front, in seeded chunks that mirror the per-batch kind/intensity draws
+    (p of each chunk corrupted; one kind + one intensity per chunk).
+    """
+    rng = np.random.default_rng(seed)
+    out = np.asarray(x, dtype=np.float32).copy()
+    for i in range(0, len(out), batch):
+        blk = out[i:i + batch]
+        mask = rng.random(len(blk)) < p
+        if mask.any():
+            kind = AUG_TYPES[rng.integers(len(AUG_TYPES))]
+            inten = float(rng.choice(intensities))
+            adv, _ = apply_anomaly(blk[mask], kind, inten, rng)
+            blk[mask] = adv
+    return out

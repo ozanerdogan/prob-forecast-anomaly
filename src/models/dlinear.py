@@ -67,7 +67,11 @@ def train_dlinear(
     x_train: np.ndarray, y_train: np.ndarray,
     x_val: np.ndarray, y_val: np.ndarray,
     cfg: DLinearConfig, device: str = "cpu",
+    augment_fn=None,
 ) -> tuple[DLinear, list[dict]]:
+    """``augment_fn`` (robust training): called per CPU batch as
+    ``augment_fn(xb) -> xb`` BEFORE the device transfer — same on-the-fly
+    anomaly-injection hook as the qLSTM/QTransformer trainers."""
     torch.manual_seed(cfg.seed)
     np.random.seed(cfg.seed)
 
@@ -95,6 +99,8 @@ def train_dlinear(
         model.train()
         tr_loss, tr_n = 0.0, 0
         for xb, yb in train_loader:
+            if augment_fn is not None:
+                xb = augment_fn(xb)
             xb, yb = xb.to(device), yb.to(device)
             opt.zero_grad()
             loss = loss_fn(model(xb), yb)

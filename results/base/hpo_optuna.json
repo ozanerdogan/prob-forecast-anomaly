@@ -1,0 +1,19 @@
+{
+  "sampler": "TPE (Optuna)",
+  "n_trials": 20,
+  "smoke": false,
+  "best_params": {
+    "hidden_size": 64,
+    "num_layers": 2,
+    "dropout": 0.0029186420068055396,
+    "lr": 0.0027733644071110384
+  },
+  "best_val_pinball": 0.06800854857490715,
+  "test_rmse_optuna": 2.3713050174795645,
+  "test_crps_optuna": 0.9957940007986109,
+  "ref_test_rmse_default": 2.3842137642141363,
+  "ref_test_crps_default": 1.015455513978363,
+  "ref_test_rmse_grid": 2.385764146742035,
+  "ref_test_crps_grid": 1.0053729514217513,
+  "verdict": "confirms grid HPO: gains in the noise; problem is HP-insensitive"
+}

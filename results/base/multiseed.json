@@ -83,26 +83,98 @@
       ],
       "rmse_mean": 2.479200639132175,
       "rmse_std": 0.0036860328229708023
+    },
+    "qtransformer": {
+      "runs": [
+        {
+          "seed": 42,
+          "rmse": 2.4304359384593623,
+          "crps": 1.0220161001030914
+        },
+        {
+          "seed": 7,
+          "rmse": 2.4081173906401276,
+          "crps": 1.0182534301620867
+        },
+        {
+          "seed": 2025,
+          "rmse": 2.4421817225770894,
+          "crps": 1.0338644965795447
+        }
+      ],
+      "rmse_mean": 2.426911683892193,
+      "rmse_std": 0.01412822129093724
+    },
+    "qtransformer_multi": {
+      "runs": [
+        {
+          "seed": 42,
+          "rmse": 2.275339294404109,
+          "crps": 0.9856382235007555
+        },
+        {
+          "seed": 7,
+          "rmse": 2.3934220226275125,
+          "crps": 1.0415128710337034
+        },
+        {
+          "seed": 2025,
+          "rmse": 2.2785513998147784,
+          "crps": 0.9957547313552384
+        }
+      ],
+      "rmse_mean": 2.3157709056154663,
+      "rmse_std": 0.054923288231290654
+    },
+    "deepar": {
+      "runs": [
+        {
+          "seed": 42,
+          "rmse": 2.690823107135305,
+          "crps": 1.1668426542811334
+        },
+        {
+          "seed": 7,
+          "rmse": 2.824425496535831,
+          "crps": 1.2096339519622004
+        },
+        {
+          "seed": 2025,
+          "rmse": 2.7090674667672103,
+          "crps": 1.1348709055138604
+        }
+      ],
+      "rmse_mean": 2.7414386901461154,
+      "rmse_std": 0.059151340873320656
     }
   },
   "ranking_per_seed": {
     "0": [
+      "qtransformer_multi",
       "qlstm",
       "gru",
       "lstm",
-      "qdlinear"
+      "qtransformer",
+      "qdlinear",
+      "deepar"
     ],
     "1": [
+      "qtransformer_multi",
       "gru",
+      "qtransformer",
       "qlstm",
       "qdlinear",
-      "lstm"
+      "lstm",
+      "deepar"
     ],
     "2": [
+      "qtransformer_multi",
       "lstm",
       "gru",
       "qlstm",
-      "qdlinear"
+      "qtransformer",
+      "qdlinear",
+      "deepar"
     ]
   }
 }

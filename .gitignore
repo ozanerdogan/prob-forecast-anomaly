@@ -43,4 +43,4 @@ wandb/
 cowork/
 
 # Local report workspace (drafts, tables, LNCS folder) -- user zips manually
-report/
+/report/

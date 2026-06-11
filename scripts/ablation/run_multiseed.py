@@ -4,7 +4,10 @@ Phase-1/2 left several models inside a ~0.05 RMSE band (LSTM 2.429, GRU 2.386,
 qLSTM-median 2.384, QT 2.430). Each model is retrained on 3 seeds and the
 mean +/- std reported, with the seed-42 ranking checked for stability.
 
-  python scripts/ablation/run_multiseed.py            # 5 models x 3 seeds = 15 trainings
+Phase-5 extension: the headline models (DeepAR, QT, QT-multi) get their
+own seed std too -- 7 models x 3 seeds.
+
+  python scripts/ablation/run_multiseed.py            # 7 models x 3 seeds = 21 trainings
   python scripts/ablation/run_multiseed.py --smoke
 """
 from __future__ import annotations
@@ -23,10 +26,12 @@ sys.path.insert(0, str(ROOT))
 from src import experiment as E  # noqa: E402
 from src.baselines.lstm_baseline import LstmConfig, train_lstm  # noqa: E402
 from src.metrics import report, report_probabilistic  # noqa: E402
+from src.models.deepar import DeepARConfig, quantiles_from_samples, sample_forecast, train_deepar  # noqa: E402
 from src.models.dlinear import DLinearConfig, predict_dlinear, train_dlinear  # noqa: E402
 from src.models.qlstm import QLstmConfig, QUANTILES_7, predict_qlstm, train_qlstm  # noqa: E402
+from src.models.quantile_transformer import QTransformerConfig, predict_quantiles, train_qtransformer  # noqa: E402
 from src.preprocessing import TARGET  # noqa: E402
-from src.seq_data import make_encoder_windows  # noqa: E402
+from src.seq_data import make_ar_windows, make_encoder_windows  # noqa: E402
 
 QUANTILES = np.array(QUANTILES_7)
 ALPHA = 0.1
@@ -45,8 +50,19 @@ def main() -> None:
     x_tr, y_tr = make_encoder_windows(data.train, L, H, stride=1)
     x_va, y_va = make_encoder_windows(data.val, L, H, stride=H)
     x_te, y_te = make_encoder_windows(data.test, L, H, stride=H)
+    yseq_tr, cov_tr = make_ar_windows(data.train, L, H, stride=1)
+    yseq_va, cov_va = make_ar_windows(data.val, L, H, stride=H)
+    yseq_te, cov_te = make_ar_windows(data.test, L, H, stride=H)
+    # the official multivariate covset (independent sensors only)
+    INDEP = ["p (mbar)", "rh (%)", "wv (m/s)", "max. wv (m/s)", "wd (deg)"]
+    data_mv = E.prepare(use_covariates=True, covariate_cols=INDEP)
+    xm_tr, ym_tr = make_encoder_windows(data_mv.train, L, H, stride=1)
+    xm_va, ym_va = make_encoder_windows(data_mv.val, L, H, stride=H)
+    xm_te, ym_te = make_encoder_windows(data_mv.test, L, H, stride=H)
     if args.smoke:
         x_tr, y_tr = x_tr[:2000], y_tr[:2000]
+        yseq_tr, cov_tr = yseq_tr[:2000], cov_tr[:2000]
+        xm_tr, ym_tr = xm_tr[:2000], ym_tr[:2000]
     inv = lambda a: data.scaler.inverse_target(a, TARGET)  # noqa: E731
     y_flat = inv(y_te).reshape(-1)
 
@@ -58,7 +74,8 @@ def main() -> None:
         return r["rmse"], r["crps"]
 
     out: dict = {"seeds": list(seeds), "smoke": bool(args.smoke), "models": {}}
-    for name in ("lstm", "gru", "qlstm", "qdlinear"):
+    for name in ("lstm", "gru", "qlstm", "qdlinear",
+                 "qtransformer", "qtransformer_multi", "deepar"):
         runs = []
         for sd in seeds:
             if name in ("lstm", "gru"):
@@ -74,12 +91,34 @@ def main() -> None:
                 m, _ = train_qlstm(x_tr[:, :, 0], y_tr, x_va[:, :, 0], y_va, cfg, device=DEVICE)
                 r, c = prob_of(predict_qlstm(m, x_te[:, :, 0], device=DEVICE))
                 runs.append({"seed": sd, "rmse": r, "crps": c})
-            else:  # qdlinear
+            elif name == "qdlinear":
                 cfg = DLinearConfig(quantiles=QUANTILES_7, seed=sd)
                 if args.smoke:
                     cfg.epochs = 1
                 m, _ = train_dlinear(x_tr[:, :, 0], y_tr, x_va[:, :, 0], y_va, cfg, device=DEVICE)
                 r, c = prob_of(predict_dlinear(m, x_te[:, :, 0], device=DEVICE))
+                runs.append({"seed": sd, "rmse": r, "crps": c})
+            elif name in ("qtransformer", "qtransformer_multi"):
+                mv = name == "qtransformer_multi"
+                cfg = QTransformerConfig(
+                    n_features=(data_mv if mv else data).n_features,
+                    quantiles=QUANTILES_7, seed=sd)
+                if args.smoke:
+                    cfg.epochs = 1
+                m, _ = train_qtransformer(*((xm_tr, ym_tr, xm_va, ym_va) if mv
+                                            else (x_tr, y_tr, x_va, y_va)),
+                                          cfg, device=DEVICE)
+                r, c = prob_of(predict_quantiles(m, xm_te if mv else x_te, device=DEVICE))
+                runs.append({"seed": sd, "rmse": r, "crps": c})
+            else:  # deepar
+                cfg = DeepARConfig(seed=sd)
+                if args.smoke:
+                    cfg.epochs = 1
+                    cfg.n_samples = 50
+                m, _ = train_deepar(yseq_tr, cov_tr, yseq_va, cov_va, cfg, device=DEVICE)
+                samples = sample_forecast(m, yseq_te, cov_te, cfg, device=DEVICE,
+                                          batch_size=128)
+                r, c = prob_of(quantiles_from_samples(samples, QUANTILES))
                 runs.append({"seed": sd, "rmse": r, "crps": c})
             print(f"  {name:9s} seed {sd:>4} rmse {runs[-1]['rmse']:.4f}")
         rmses = [r["rmse"] for r in runs]

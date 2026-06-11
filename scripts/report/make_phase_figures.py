@@ -60,13 +60,29 @@ MAIN_FIGURES = {
 }
 
 
+# --paper <dir>: additionally write a copy of each figure WITHOUT the
+# process-jargon figure title (suptitle / "Phase N —" axes titles) into <dir>
+# for direct inclusion in the LNCS report (captions live in LaTeX there).
+PAPER_DIR: Path | None = None
+
+
 def _save(fig, phase: int, name: str) -> None:
     out_dir = RES / "figures" / ("main" if name in MAIN_FIGURES else "extra")
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / name
     fig.savefig(out)
-    plt.close(fig)
     print(f"  wrote {out}")
+    if PAPER_DIR is not None:
+        if fig._suptitle is not None:
+            fig._suptitle.remove()
+        for ax in fig.axes:
+            if ax.get_title().startswith("Phase"):
+                ax.set_title("")
+        fig.tight_layout()
+        PAPER_DIR.mkdir(parents=True, exist_ok=True)
+        fig.savefig(PAPER_DIR / name, dpi=200)
+        print(f"  wrote {PAPER_DIR / name} (paper copy)")
+    plt.close(fig)
 
 
 # ------------------------------------------------------------------ phase 1
@@ -800,9 +816,14 @@ PHASES = {
 
 
 def main() -> None:
+    global PAPER_DIR
     ap = argparse.ArgumentParser()
     ap.add_argument("--phase", default="all", choices=("1", "2", "3", "4", "5", "all"))
+    ap.add_argument("--paper", default=None, metavar="DIR",
+                    help="also write title-less copies into DIR (LNCS figures)")
     args = ap.parse_args()
+    if args.paper:
+        PAPER_DIR = Path(args.paper)
     phases = (1, 2, 3, 4, 5) if args.phase == "all" else (int(args.phase),)
     for ph in phases:
         print(f"Phase {ph} figures:")

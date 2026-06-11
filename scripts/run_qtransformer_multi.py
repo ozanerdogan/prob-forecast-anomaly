@@ -56,12 +56,26 @@ def main() -> None:
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--catalog", choices=("v1", "v2"), default="v1",
                         help="v2 adds the phase-2 fault families to the sweep")
+    parser.add_argument("--covset", choices=("independent", "legacy"), default="independent",
+                        help="independent (default, official) = the 5 genuinely "
+                             "independent sensors (p/rh/wv/max.wv/wd); legacy = the "
+                             "old p/rh/VPmax/wv set (VPmax is a redundant temperature "
+                             "proxy, kept only for comparison)")
     args = parser.parse_args()
     nongrad = NONGRAD_V1 + (FAULT_TYPES_V2 if args.catalog == "v2" else ())
 
-    data = E.prepare(use_covariates=True)
+    # Official multivariate set: only genuinely independent sensors -- no VPmax
+    # (a redundant temperature proxy), and the strong but previously unused
+    # max.wv (+0.38) and wd added. Calendar features (incl. doy_cos) are added
+    # automatically by build_feature_frame regardless of this list.
+    indep = ["p (mbar)", "rh (%)", "wv (m/s)", "max. wv (m/s)", "wd (deg)"]
+    legacy = ["p (mbar)", "rh (%)", "VPmax (mbar)", "wv (m/s)"]
+    cov_cols = legacy if args.covset == "legacy" else indep
+    model_name = "qtransformer_multi_legacy" if args.covset == "legacy" else "qtransformer_multi"
+
+    data = E.prepare(use_covariates=True, covariate_cols=cov_cols)
     cols = list(build_feature_frame(load_hourly(ROOT / "data" / "processed"),
-                                    TARGET, use_covariates=True).columns)
+                                    TARGET, use_covariates=True, covariate_cols=cov_cols).columns)
     cfg = QTransformerConfig(n_features=data.n_features, quantiles=QUANTILES_7)
     if args.smoke:
         cfg.epochs = 1
@@ -73,26 +87,26 @@ def main() -> None:
     grad_fn = lambda x, y: E.qtransformer_context_grad(model, x, y, QUANTILES)  # noqa: E731
 
     metrics = evaluate_and_dump(
-        "qtransformer_multi", data, predict_fn, root=ROOT, grad_fn=grad_fn,
+        model_name, data, predict_fn, root=ROOT, grad_fn=grad_fn,
         quantiles=QUANTILES, nongrad_types=nongrad, smoke=args.smoke,
     )
 
     pred_dir = ROOT / "results" / ("predictions_smoke" if args.smoke else "predictions")
-    d = load_predictions(prediction_path(pred_dir, "qtransformer_multi", "test", "clean"))
+    d = load_predictions(prediction_path(pred_dir, model_name, "test", "clean"))
     med = d["quantiles"][..., int(np.argmin(np.abs(QUANTILES - 0.5)))].reshape(-1)
     y_flat_t = d["y_true"].reshape(-1)
     metrics["smape"] = smape(y_flat_t, med)
     metrics["mase"] = mase(y_flat_t, med, data.train_target_raw, season=24)
     metrics.update(
-        model="qtransformer_multi", target=TARGET, channels=cols,
+        model=model_name, target=TARGET, channels=cols,
         lookback=cfg.lookback, horizon=cfg.horizon, epochs=cfg.epochs,
         quantiles=QUANTILES.tolist(), seed=SEED, smoke=bool(args.smoke),
         anomaly_stance="target-channel-only corruption (Asama-1)",
     )
-    out = ROOT / "results" / "base" / "qtransformer_multi.json"
+    out = ROOT / "results" / "base" / f"{model_name}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(metrics, indent=2))
-    print(f"Saved -> {out}")
+    print(f"Saved -> {out}  (clean RMSE {metrics['rmse']:.3f}, CRPS {metrics['crps']:.3f})")
 
     # ------------------------------------------------------------------ #
     # Channel permutation importance (val + test).
@@ -100,7 +114,7 @@ def main() -> None:
     print("Permutation importance ...")
     inv = lambda a: data.scaler.inverse_target(a, TARGET)  # noqa: E731
     L, H = cfg.lookback, cfg.horizon
-    importance: dict = {"model": "qtransformer_multi", "channels": cols[1:],
+    importance: dict = {"model": model_name, "channels": cols[1:],
                         "method": "channel shuffled across windows, seed 42",
                         "splits": {}}
     for split_name, arr in (("val", data.val), ("test", data.test)):
@@ -127,7 +141,8 @@ def main() -> None:
                   f"dRMSE {rows[cols[c]]['delta_rmse']:+.4f}")
         importance["splits"][split_name] = {"base": base, "permuted": rows}
 
-    out_fi = ROOT / "results" / "base" / "feature_importance.json"
+    fi_suffix = "_legacy" if args.covset == "legacy" else ""
+    out_fi = ROOT / "results" / "base" / f"feature_importance{fi_suffix}.json"
     out_fi.write_text(json.dumps(importance, indent=2))
     print(f"Saved -> {out_fi}")
 

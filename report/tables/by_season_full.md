@@ -2,7 +2,7 @@
 
 | Model | DJF | MAM | JJA | SON |
 |---|---|---|---|---|
-| qtransformer_multi | 2.37 | 2.21 | 2.28 | 1.96 |
+| qtransformer_multi | 2.46 | 2.29 | 2.19 | 2.16 |
 | qlstm | 2.35 | 2.44 | 2.55 | 2.18 |
 | gru | 2.44 | 2.37 | 2.53 | 2.19 |
 | qtransformer | 2.39 | 2.50 | 2.60 | 2.20 |

@@ -21,7 +21,7 @@ sensor spikes, flatlines, level shifts, drifts, even adversarial perturbations. 
 whether **probabilistic forecasters' uncertainty stays trustworthy when the input context is
 corrupted**, and how to repair it when it is not.
 
-**Headline findings** (14-model roster × 8 fault types × 3 intensities, 359 test windows):
+**Headline findings** (14-model roster × 9 anomaly types × 3 intensities, 359 test windows):
 
 - On clean data the multivariate quantile Transformer leads (RMSE 2.28); quantile heads cost
   nothing over their deterministic twins (qLSTM beats LSTM, DM p = 0.024).
@@ -62,8 +62,10 @@ python scripts/models/run_qtransformer.py
 python scripts/models/run_qtransformer_multi.py   # multivariate QT + permutation importance
 python scripts/models/run_qlstm_robust.py         # robust qLSTM as a first-class dump
 python scripts/models/run_qt_robust.py
+python scripts/models/run_deepar_robust.py        # robust DeepAR
+python scripts/models/run_robust_roster.py        # robust LightGBM / qDLinear / QRF
 
-# Anomaly sweep (also dumps frozen forecasts; --catalog v2 for the 8-fault sweep)
+# Anomaly sweep (also dumps frozen forecasts; --catalog v2 = the 9 anomaly types)
 python scripts/analysis/run_anomaly_eval.py --catalog v2
 
 # Stage 2 — calibration (reads frozen dumps, never runs a model)
@@ -84,6 +86,8 @@ python scripts/analysis/run_error_analysis.py
 python scripts/analysis/run_ensemble_intervals.py
 python scripts/analysis/run_composite_anomaly.py
 python scripts/analysis/run_tail_oversampling.py
+python scripts/analysis/run_fgsm_multichannel.py   # multi-channel FGSM (multivariate QT)
+python scripts/analysis/run_fgsm_transfer.py       # transfer FGSM to gradient-free models
 
 # Ablations / optimization
 python scripts/ablation/run_ablation.py            # input/lookback/likelihood/quantile-set
@@ -91,7 +95,9 @@ python scripts/ablation/run_horizon_ablation.py    # 12/24/48/168 h
 python scripts/ablation/run_10min_ablation.py      # native 10-min resolution
 python scripts/ablation/run_qt_extreme_quantiles.py
 python scripts/ablation/run_covariate_importance.py
+python scripts/ablation/run_covariate_importance.py --covset independent   # leakage-free 5-channel set
 python scripts/ablation/run_exogenous_only.py
+python scripts/ablation/run_exogenous_only.py --covset independent         # leakage-free 5-channel set
 python scripts/ablation/run_hpo.py
 python scripts/ablation/run_hpo_optuna.py          # Optuna TPE confirmation
 python scripts/ablation/run_multiseed.py
@@ -162,7 +168,7 @@ temperature: inverting the Magnus formula recovers T from `VPmax` with RMSE 0.05
 std of 8.4 °C, so feeding them covertly injects the target. An "exogenous-only" model with these
 proxies scores RMSE 2.32, but restricted to the **5 genuinely independent** sensors (`p`, `rh`,
 `wv`, `max. wv`, `wd`) it manages only 3.68, worse than the naive baseline (3.21). The official
-multivariate set therefore uses just those 5 channels plus calendar features.
+multivariate set therefore feeds the target plus only those 5 channels and calendar features.
 
 DeepAR is autoregressive, so feeding it *contemporaneous* horizon weather also leaks the answer.
 That oracle variant is dropped from the roster; the leakage-free `deepar_past_covariate` freezes
@@ -194,7 +200,7 @@ are backed by Diebold–Mariano + paired-bootstrap tests (`results/base/signific
 <details>
 <summary><b>Anomaly catalog & two-stage repair</b></summary>
 
-**Catalog (8 faults, 3 intensities, local-std scaled, injected into the test context window of the
+**Catalog (9 anomaly types, 3 intensities, local-std scaled, injected into the test context window of the
 target channel):** point spike, contextual outlier, level shift, white-box FGSM (v1) + flatline,
 drift, noise burst, gap imputation, clock skew (v2). Severity at 4× intensity:
 catastrophic (drift / level shift / FGSM, PICP < 0.37), moderate (flatline / clock skew, PICP ≈

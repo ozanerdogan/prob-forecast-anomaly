@@ -540,28 +540,6 @@ def fig_cv() -> None:
     _save(fig, "cv_fold_variance.png")
 
 
-def fig_robust_training() -> None:
-    p = RES / "base" / "qlstm_robust_compare.json"
-    if not p.exists():
-        return
-    rc = json.loads(p.read_text())
-    settings = rc["settings_order"]
-    fig, ax = plt.subplots(figsize=(6.6, 2.9))
-    x = np.arange(len(settings))
-    ax.bar(x - 0.19, [rc["normal"][s]["picp"] for s in settings], 0.38,
-           label="normal qLSTM", color="#7f8c8d")
-    ax.bar(x + 0.19, [rc["robust"][s]["picp"] for s in settings], 0.38,
-           label="robust-trained qLSTM", color="#27ae60")
-    ax.axhline(0.9, color="k", lw=0.7, ls=":")
-    ax.set_xticks(x)
-    ax.set_xticklabels([s.replace("_", "\n") for s in settings], fontsize=7)
-    ax.set_ylabel("uncalibrated PICP")
-    ax.set_title("Robust (anomaly-augmented) training: normal vs robust-trained")
-    ax.legend(frameon=False)
-    ax.grid(axis="y", alpha=0.25)
-    _save(fig, "robust_training_picp.png")
-
-
 def fig_horizon() -> None:
     p = RES / "base" / "horizon_ablation.json"
     if not p.exists():
@@ -897,7 +875,7 @@ FIGURES = (
     fig_permutation_importance, fig_covariate_full, fig_covariate_independent,
     fig_input_value, fig_error_breakdowns, fig_natural_extremes,
     # optimization story
-    fig_hpo, fig_multiseed, fig_cv, fig_robust_training,
+    fig_hpo, fig_multiseed, fig_cv,
     fig_horizon, fig_extreme_quantiles, fig_ensemble_intervals,
     # anomaly story
     fig_fault_heatmap, fig_resolution, fig_robust_generalize,

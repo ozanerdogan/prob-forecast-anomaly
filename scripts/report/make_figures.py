@@ -2,7 +2,7 @@
 
   python scripts/report/make_figures.py                       # everything
   python scripts/report/make_figures.py --only heatmap        # name filter
-  python scripts/report/make_figures.py --paper report/final_report_v2/figures
+  python scripts/report/make_figures.py --paper <dir>
 
 Output: results/figures/main/*.png are the figures used in the final report
 (MAIN_FIGURES); results/figures/extra/*.png is everything else. --paper

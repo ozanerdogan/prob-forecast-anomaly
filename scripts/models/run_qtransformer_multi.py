@@ -4,7 +4,8 @@ Phase-2 decision implemented here: the multivariate-base promotion is
 per-model — the QT encoder is the model whose covariates demonstrably help
 without leakage (ablation: CRPS 1.039 -> 0.901 at the shared budget), so it
 gets the full-budget multivariate base run; DeepAR stays univariate (its
-leakage-free past-covariate variant hurts — see the archived probe in cowork/3_arsiv/scripts/).
+leakage-free past-covariate variant hurts vs target-only, CRPS 1.46 -> 1.72;
+see results/ablation/deepar_past_covariate.json).
 
 Anomaly stance ('Asama-1'): corruption hits the TARGET channel only, with the
 same seeded streams as every other model, so rows remain directly comparable

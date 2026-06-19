@@ -1,4 +1,4 @@
-# Data — Acquisition Instructions
+# Data: Jena Climate
 
 We use the **Jena Climate 2009–2016** dataset (Max Planck Institute for Biogeochemistry).
 14 weather variables sampled every 10 minutes; we resample to **hourly** for forecasting.
@@ -23,8 +23,8 @@ Direct URL (Keras mirror):
 https://storage.googleapis.com/tensorflow/tf-keras-datasets/jena_climate_2009_2016.csv.zip
 ```
 
-Place the unzipped CSV at `data/raw/jena_climate_2009_2016.csv` and re-run the script — it will skip
-the download step.
+Place the unzipped CSV at `data/raw/jena_climate_2009_2016.csv` and re-run the script. It detects
+the existing file and skips the download step, going straight to resampling.
 
 ## Splits
 
@@ -36,7 +36,7 @@ We use a fixed chronological split:
 | Val   | 2015-01-01 → 2015-12-31 23:00 | 8,760 |
 | Test  | 2016-01-01 → 2016-12-31 23:00 | 8,784 |
 
-Splits are produced deterministically by `src/preprocessing.py`.
+Splits are produced deterministically by [`src/preprocessing.py`](../src/preprocessing.py).
 
 ## Variables
 
@@ -57,15 +57,21 @@ Splits are produced deterministically by `src/preprocessing.py`.
 | `max. wv (m/s)` | Max wind speed | m/s |
 | `wd (deg)` | Wind direction | deg |
 
-**Forecasting target:** `T (degC)`. The default setting is single-target (univariate).
-Multivariate variants additionally feed the **5 independent** exogenous channels
-(`p (mbar)`, `rh (%)`, `wv (m/s)`, `max. wv (m/s)`, `wd (deg)`) plus calendar features alongside
-the target. The remaining 8 exogenous variables (`Tpot`, `Tdew`, `VPmax`, `VPact`, `VPdef`,
-`sh`, `H2OC`, `rho`) are analytically derivable from temperature (e.g. inverting the Magnus
-formula recovers T from VPmax with RMSE 0.05 °C against a T std of 8.4 °C), so feeding them
-would covertly inject the target into the input — they are excluded as **leakage**. Because
-DeepAR is autoregressive, feeding *contemporaneous* future weather also leaks the target — that
-variant (`deepar_multivariate`) was an oracle upper bound and has been removed from the
-leaderboard (archived in `cowork/3_arsiv/`), while **`deepar_past_covariate`** freezes horizon
-weather at the origin (persistence) for a leakage-free setting. See the covariate-handling note
-in the top-level `README.md`.
+## Forecasting target and covariates
+
+**Target:** `T (degC)`. The default setup is single-target (univariate).
+
+Multivariate variants add the **5 independent** exogenous channels alongside the target, plus
+calendar features: `p (mbar)`, `rh (%)`, `wv (m/s)`, `max. wv (m/s)`, `wd (deg)`.
+
+The remaining 8 exogenous variables (`Tpot`, `Tdew`, `VPmax`, `VPact`, `VPdef`, `sh`, `H2OC`,
+`rho`) are analytically derivable from temperature. Inverting the Magnus formula, for example,
+recovers `T` from `VPmax` with an RMSE of 0.05 °C against a temperature std of 8.4 °C. Feeding
+them would covertly inject the target into the input, so they are excluded as **leakage**.
+
+DeepAR is autoregressive, so feeding it *contemporaneous* future weather leaks the target as well.
+That variant (`deepar_multivariate`) was an oracle upper bound and has been removed from the
+leaderboard; the leakage-free **`deepar_past_covariate`** instead freezes horizon weather at the
+origin (persistence).
+
+See the covariate-handling note in the top-level [`README.md`](../README.md) for the full analysis.

@@ -10,7 +10,7 @@ The earlier results/base/error_analysis.json covered only LSTM + the two
 probabilistic models; this generalises it to the whole roster directly from
 results/predictions/ (probabilistic models contribute their median).
 
-Writes results/base/error_tables_full.json and report/tables/*.md.
+Writes results/base/error_tables_full.json and results/tables/*.md.
 
   python scripts/report/make_error_tables.py
 """
@@ -35,7 +35,7 @@ from src.error_analysis import (  # noqa: E402
 from src.predictions_io import load_predictions, prediction_path  # noqa: E402
 
 PRED = ROOT / "results" / "predictions"
-TABLES = ROOT / "report" / "tables"
+TABLES = ROOT / "results" / "tables"
 L, H, STRIDE = 168, 24, 24
 SEASON_ORDER = ("DJF", "MAM", "JJA", "SON")
 TEMP_ORDER = ("<0", "0-10", "10-20", ">20")

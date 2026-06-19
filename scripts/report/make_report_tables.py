@@ -1,6 +1,6 @@
 """Phase-4 report tables, built purely from frozen dumps (no model runs).
 
-Emits Markdown tables under report/tables/ and a machine-readable
+Emits Markdown tables under results/tables/ and a machine-readable
 results/base/report_tables.json:
 
   - clean_leaderboard : every model's clean-test point + interval metrics
@@ -30,7 +30,7 @@ PRED = ROOT / "results" / "predictions"
 BASE = ROOT / "results" / "base"
 CAL = ROOT / "results" / "calibrated"
 ALPHA = 0.1
-TABLES = ROOT / "report" / "tables"
+TABLES = ROOT / "results" / "tables"
 CAL_METHODS = ("static", "cqr", "aci", "input_tau", "aci_margin", "detect_adapt")
 
 ROSTER = ("naive_seasonal", "lstm", "gru", "dlinear", "deepar", "qtransformer",
